@@ -1,6 +1,6 @@
-# 교사 나눔터 (shareSchool)
+# 솔방울 (shareSchool)
 
-승인된 현직 교사만 이용하는 나눔·소모임 플랫폼. 구현 계약서는 `prdFile/prd.md`.
+승인된 현직 교사만 이용하는 나눔·모임·게시판 플랫폼. 구현 계약서는 `prdFile/prd.md`.
 
 ## 스택
 
@@ -47,6 +47,8 @@ psql "$DATABASE_URL" -f supabase/seed.sql   # 품목 유형 + 기본 평가 질�
 | `0007_user_carbon_totals.sql` | `user_carbon_totals` 뷰 |
 | `0009_carbon_integrity.sql` | `carbon_g` 스냅샷 강제 트리거(위조 차단), `user_carbon_totals` 본인 한정 |
 | `0008_storage.sql` | Storage 버킷 2개와 objects 정책 (storage 스키마가 없으면 자동 skip) |
+| `0011_review_scope_and_reserved_comments.sql` | `my_school_id()`, 본인 학교만 별점 평가(R24), 예약중 댓글은 예약자·글쓴이만(R15) |
+| `0010_categories_boards.sql` | 나눔 3단계 분류(`is_valid_share_category()`, `subject`), `usage_tips`/`condition`, `club_posts.kind`(소모임·번개모임), `board_*` 3개 테이블 + RLS, `board-images` 버킷 |
 
 되돌리기: 신규 프로젝트 전제이므로 `drop schema public cascade; create schema public;`
 후 재적용이 가장 확실하다. 개별 롤백 스크립트는 두지 않았다.
@@ -102,4 +104,17 @@ NEXT_PUBLIC_SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
 - **`schools`와 캐시 테이블에는 쓰기 정책이 없다.** 정책이 없으면 RLS가 거부하므로
   사용자 세션으로는 INSERT/UPDATE가 불가능하다. 쓰기는 서비스 롤 클라이언트만 한다.
 - **카테고리 매핑은 두 곳에 산다.** `src/lib/categories.ts`와
-  `supabase/migrations/0002_categories.sql`. 바꿀 때 반드시 둘 다 고친다.
+  `supabase/migrations/0010_categories_boards.sql`의
+  `is_valid_share_category()`. 바꿀 때 반드시 둘 다 고친다.
+- **나눔 분류는 3단계다.** 학교급(초등/중등) × 대분류(수업교구/학급경영/학급자료)
+  × 과목(공통 + 10과목). 세 축은 서로 독립이다. `공통`은 과목이 필수인데
+  학급경영·학급자료 물건은 과목이 없는 경우가 많아서 있다.
+- **분류는 나눔에만 있다.** 소모임·번개모임·게시판에는 분류도 검색 상자도 없다.
+  소모임 분류 체계는 이후 작업이다.
+- **별점 평가는 본인 학교만.** `my_school_id()`를 쓰는 RLS 정책이 경계이고,
+  화면에서 폼을 감추는 것은 안내용이다. (R24, 마이그레이션 11)
+- **예약은 비공개 스레드를 연다.** 예약중인 나눔글에는 예약자와 글쓴이만 댓글을
+  쓸 수 있고, 예약이 풀리거나 완료되면 다시 전원 공개다. 기존 댓글은 그대로
+  남는다. (R15, 마이그레이션 11)
+- **소모임과 번개모임은 한 테이블이다.** `club_posts.kind`로 갈리고, 하단 탭이
+  아니라 `/clubs` 안의 서브탭이다.

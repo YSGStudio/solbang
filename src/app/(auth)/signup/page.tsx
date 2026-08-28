@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useActionState } from "react";
 import { signUp } from "../actions";
@@ -11,7 +12,10 @@ export default function SignupPage() {
 
   return (
     <main className="center-page">
-      <h1>가입 신청</h1>
+      <div className="brand-hero">
+        <Image src="/logo.png" alt="" width={77} height={104} priority />
+        <h1 style={{ margin: 0 }}>가입 신청</h1>
+      </div>
       <p className="muted">
         가입 후 운영자 승인을 받아야 나눔·소모임·학교정보를 이용할 수 있습니다.
       </p>

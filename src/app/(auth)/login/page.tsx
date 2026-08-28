@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useActionState } from "react";
 import { signIn } from "../actions";
@@ -10,7 +11,10 @@ export default function LoginPage() {
 
   return (
     <main className="center-page">
-      <h1>교사 나눔터</h1>
+      <div className="brand-hero">
+        <Image src="/logo.png" alt="" width={77} height={104} priority />
+        <h1 style={{ margin: 0 }}>솔방울</h1>
+      </div>
       <p className="muted">승인된 현직 교사만 이용하는 공간입니다.</p>
 
       <form action={action} className="card" style={{ marginTop: 20 }}>

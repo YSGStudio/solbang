@@ -4,12 +4,18 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireApprovedProfile } from "@/lib/auth";
-import { isValidPair, MAX_CLUB_IMAGES } from "@/lib/categories";
+import { isClubKind, MAX_CLUB_IMAGES, type ClubKind } from "@/lib/categories";
 import { uploadPostImages, removeImages, UploadError } from "@/lib/storage";
 
 export type ActionState = { error?: string } | undefined;
 
-/** R18, R19. Photos are optional here, unlike share posts. */
+/**
+ * R18, R19. Photos are optional here, unlike share posts.
+ *
+ * 소모임 and 번개모임 are the same shape and live in one table, split by
+ * `kind`. The club taxonomy is a later piece of work, so no 학교급/카테고리
+ * is collected or stored. (migration 10)
+ */
 export async function createClubPost(
   _prev: ActionState,
   formData: FormData,
@@ -19,18 +25,15 @@ export async function createClubPost(
 
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
-  const schoolLevel = String(formData.get("school_level") ?? "");
-  const category = String(formData.get("category") ?? "");
+  const rawKind = String(formData.get("kind") ?? "club");
+  const kind: ClubKind = isClubKind(rawKind) ? rawKind : "club";
   const files = formData
     .getAll("images")
     .filter((f): f is File => f instanceof File)
     .filter((f) => f.size > 0);
 
   if (!title) return { error: "제목을 입력해 주세요." };
-  if (!description) return { error: "소모임 설명을 입력해 주세요." };
-  if (!isValidPair(schoolLevel, category)) {
-    return { error: "학교급과 카테고리 조합이 올바르지 않습니다." };
-  }
+  if (!description) return { error: "모임 설명을 입력해 주세요." };
   if (files.length > MAX_CLUB_IMAGES) {
     return { error: `사진은 최대 ${MAX_CLUB_IMAGES}장까지 첨부할 수 있습니다.` };
   }
@@ -55,8 +58,7 @@ export async function createClubPost(
       author_id: profile.id,
       title,
       description,
-      school_level: schoolLevel as "elementary" | "secondary",
-      category,
+      kind,
     })
     .select("id")
     .single();

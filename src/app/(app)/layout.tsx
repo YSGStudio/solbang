@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { requireApprovedProfile } from "@/lib/auth";
 import { TabBar } from "@/components/TabBar";
@@ -13,7 +14,10 @@ export default async function AppLayout({
   return (
     <div className="shell">
       <header className="topbar">
-        <strong>교사 나눔터</strong>
+        <Link href="/share" className="brand">
+          <Image src="/logo.png" alt="" width={38} height={52} priority />
+          <strong>솔방울</strong>
+        </Link>
         <div className="row" style={{ gap: 6 }}>
           <span className="muted">{profile.nickname}</span>
           {profile.role === "admin" ? (

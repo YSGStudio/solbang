@@ -70,13 +70,35 @@ a { color: inherit; text-decoration: none; }
 
 .topbar strong { font-size: 1rem; }
 
+/* Brand lockup: the solbang mascot next to the wordmark. */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+}
+.brand img { display: block; width: auto; height: 30px; }
+.brand strong { white-space: nowrap; }
+
+/* Larger, stacked lockup for the signed-out screens. */
+.brand-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.brand-hero img { display: block; width: auto; height: 104px; }
+
 /* Bottom tab bar on phones, top-of-content pill row on wider screens. */
 .tabs {
   position: fixed;
   left: 0; right: 0; bottom: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   background: var(--surface);
   border-top: 1px solid var(--border);
   padding-bottom: env(safe-area-inset-bottom, 0);
@@ -187,6 +209,32 @@ input:disabled, textarea:disabled, select:disabled, button:disabled {
 
 .field { margin-bottom: 14px; }
 
+/* Drag-and-drop target above the native file input. */
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
+  padding: 18px 14px;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.dropzone:hover, .dropzone:focus-visible {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.dropzone-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
 button, .btn {
   min-height: var(--tap);
   padding: 10px 16px;
@@ -210,6 +258,25 @@ button, .btn {
 }
 .btn-danger { color: var(--danger); border-color: var(--danger); }
 .btn-block { width: 100%; }
+
+.subtabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.subtabs a {
+  padding: 10px 16px;
+  text-decoration: none;
+  color: var(--text-muted);
+  font-weight: 600;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.subtabs a[aria-current="page"] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
 
 .notice {
   border-radius: 8px;

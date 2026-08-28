@@ -9,6 +9,13 @@ import { submitSchoolReview } from "../actions";
 
 export const dynamic = "force-dynamic";
 
+const REVIEW_ERRORS: Record<string, string> = {
+  empty: "별점을 하나 이상 선택해 주세요.",
+  save: "평가를 저장하지 못했습니다.",
+  "no-school": "내 학교를 먼저 설정해 주세요.",
+  "not-my-school": "내가 속한 학교만 평가할 수 있습니다.",
+};
+
 /** T17 / R23, R24, R25. */
 export default async function SchoolDetailPage({
   params,
@@ -78,6 +85,10 @@ export default async function SchoolDetailPage({
     ).map((a) => [a.question_id, a.score]),
   );
 
+  // R24 (migration 11): rating is limited to the school you belong to. The
+  // RLS policy refuses anything else; this just keeps the form off the page.
+  const isMySchool = profile.school_id === school.id;
+
   return (
     <main>
       <p className="muted">
@@ -90,9 +101,7 @@ export default async function SchoolDetailPage({
       {saved ? <p className="notice notice-info">평가를 저장했습니다.</p> : null}
       {error ? (
         <p className="notice notice-error">
-          {error === "empty"
-            ? "별점을 하나 이상 선택해 주세요."
-            : "평가를 저장하지 못했습니다."}
+          {REVIEW_ERRORS[error] ?? "평가를 저장하지 못했습니다."}
         </p>
       ) : null}
 
@@ -140,7 +149,14 @@ export default async function SchoolDetailPage({
       )}
 
       <h2>{myReview ? "내 평가 수정" : "이 학교 평가하기"}</h2>
-      {questions && questions.length > 0 ? (
+      {!isMySchool ? (
+        <p className="notice notice-info">
+          {profile.school_id
+            ? "내가 속한 학교만 평가할 수 있습니다. 다른 학교의 평균은 볼 수 있습니다."
+            : "평가하려면 먼저 내 학교를 설정해야 합니다."}{" "}
+          <Link href="/me"><u>내 정보에서 학교 설정하기</u></Link>
+        </p>
+      ) : questions && questions.length > 0 ? (
         <form action={submitSchoolReview}>
           <input type="hidden" name="school_id" value={school.id} />
           {questions.map((question) => (

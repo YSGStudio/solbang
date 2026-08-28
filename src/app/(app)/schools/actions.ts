@@ -8,11 +8,21 @@ import { requireApprovedProfile } from "@/lib/auth";
 /**
  * R24. One review per user per school; re-rating overwrites. (AC14)
  * The unique constraints in migration 5 are what guarantee it.
+ *
+ * Migration 11 scopes rating to the teacher's own school. The RLS policy is
+ * the boundary; this check only turns the refusal into a sentence.
  */
 export async function submitSchoolReview(formData: FormData): Promise<void> {
   const profile = await requireApprovedProfile();
   const supabase = await createClient();
   const schoolId = String(formData.get("school_id") ?? "");
+
+  if (!profile.school_id) {
+    redirect(`/schools/${schoolId}?error=no-school`);
+  }
+  if (profile.school_id !== schoolId) {
+    redirect(`/schools/${schoolId}?error=not-my-school`);
+  }
 
   const scores: { questionId: string; score: number }[] = [];
   for (const [key, value] of formData.entries()) {

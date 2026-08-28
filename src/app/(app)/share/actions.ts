@@ -4,7 +4,13 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireApprovedProfile } from "@/lib/auth";
-import { isValidPair, MAX_SHARE_IMAGES } from "@/lib/categories";
+import {
+  isItemCondition,
+  isSchoolLevel,
+  isValidShareCategory,
+  MAX_SHARE_IMAGES,
+  type ShareStatus,
+} from "@/lib/categories";
 import { uploadPostImages, removeImages, UploadError } from "@/lib/storage";
 
 export type ActionState = { error?: string } | undefined;
@@ -23,15 +29,22 @@ export async function createSharePost(
 
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
+  const usageTips = String(formData.get("usage_tips") ?? "").trim();
+  const condition = String(formData.get("condition") ?? "");
   const schoolLevel = String(formData.get("school_level") ?? "");
   const category = String(formData.get("category") ?? "");
+  const subject = String(formData.get("subject") ?? "");
   const itemTypeId = String(formData.get("item_type_id") ?? "").trim();
   const files = formData.getAll("images").filter((f): f is File => f instanceof File);
 
   if (!title) return { error: "제목을 입력해 주세요." };
   if (!description) return { error: "물건 설명을 입력해 주세요." };
-  if (!isValidPair(schoolLevel, category)) {
-    return { error: "학교급과 카테고리 조합이 올바르지 않습니다." };
+  if (!isSchoolLevel(schoolLevel)) return { error: "학교급을 선택해 주세요." };
+  if (!isValidShareCategory(category, subject)) {
+    return { error: "분류와 과목을 올바르게 선택해 주세요." };
+  }
+  if (!isItemCondition(condition)) {
+    return { error: "물건 상태를 선택해 주세요." };
   }
   if (!itemTypeId) return { error: "품목 유형을 선택해 주세요." };
 
@@ -72,8 +85,11 @@ export async function createSharePost(
       author_id: profile.id,
       title,
       description,
-      school_level: schoolLevel as "elementary" | "secondary",
+      usage_tips: usageTips,
+      condition,
+      school_level: schoolLevel,
       category,
+      subject,
       item_type_id: itemType.id,
       carbon_g: itemType.carbon_g,
     })
@@ -194,4 +210,197 @@ export async function addShareComment(formData: FormData): Promise<void> {
 
   revalidatePath(`/share/${postId}`);
   redirect(`/share/${postId}`);
+}
+
+/**
+ * Fields the author is allowed to change after the fact. `item_type_id` and
+ * `carbon_g` are deliberately absent: migration 9 freezes the carbon snapshot
+ * and rejects any update that touches either one. (R16)
+ */
+export async function updateSharePost(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const profile = await requireApprovedProfile();
+  const supabase = await createClient();
+
+  const postId = String(formData.get("post_id") ?? "").trim();
+  const title = String(formData.get("title") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const usageTips = String(formData.get("usage_tips") ?? "").trim();
+  const condition = String(formData.get("condition") ?? "");
+  const schoolLevel = String(formData.get("school_level") ?? "");
+  const category = String(formData.get("category") ?? "");
+  const subject = String(formData.get("subject") ?? "");
+  const removePaths = formData
+    .getAll("remove_images")
+    .map((value) => String(value))
+    .filter(Boolean);
+  const files = formData.getAll("images").filter((f): f is File => f instanceof File);
+
+  if (!postId) return { error: "잘못된 요청입니다." };
+  if (!title) return { error: "제목을 입력해 주세요." };
+  if (!description) return { error: "물건 설명을 입력해 주세요." };
+  if (!isSchoolLevel(schoolLevel)) return { error: "학교급을 선택해 주세요." };
+  if (!isValidShareCategory(category, subject)) {
+    return { error: "분류와 과목을 올바르게 선택해 주세요." };
+  }
+  if (!isItemCondition(condition)) {
+    return { error: "물건 상태를 선택해 주세요." };
+  }
+
+  const { data: existing } = await supabase
+    .from("share_posts")
+    .select("id, author_id, status, images:share_post_images (storage_path)")
+    .eq("id", postId)
+    .maybeSingle();
+
+  if (!existing) return { error: "글을 찾을 수 없습니다." };
+
+  const current = existing as unknown as {
+    id: string;
+    author_id: string;
+    status: ShareStatus;
+    images: { storage_path: string }[];
+  };
+
+  // The RLS policy and the transition trigger both say the same thing; this
+  // is only so the author sees a sentence instead of a database error.
+  if (current.author_id !== profile.id) {
+    return { error: "글쓴이만 수정할 수 있습니다." };
+  }
+  if (current.status === "completed") {
+    return { error: "나눔이 완료된 글은 수정할 수 없습니다." };
+  }
+
+  const currentPaths = current.images.map((image) => image.storage_path);
+  const toRemove = removePaths.filter((path) => currentPaths.includes(path));
+  const realFiles = files.filter((file) => file.size > 0);
+  const finalCount = currentPaths.length - toRemove.length + realFiles.length;
+
+  // R10: the post must keep at least one photo and never exceed four.
+  if (finalCount < 1) return { error: "사진을 1장 이상 남겨 주세요." };
+  if (finalCount > MAX_SHARE_IMAGES) {
+    return { error: `사진은 최대 ${MAX_SHARE_IMAGES}장까지 첨부할 수 있습니다.` };
+  }
+
+  let uploaded: string[] = [];
+  if (realFiles.length > 0) {
+    try {
+      uploaded = await uploadPostImages(
+        supabase,
+        "share-images",
+        profile.id,
+        realFiles,
+        MAX_SHARE_IMAGES,
+      );
+    } catch (error) {
+      if (error instanceof UploadError) return { error: error.message };
+      throw error;
+    }
+  }
+
+  const { error: updateError } = await supabase
+    .from("share_posts")
+    .update({
+      title,
+      description,
+      usage_tips: usageTips,
+      condition,
+      school_level: schoolLevel,
+      category,
+      subject,
+    })
+    .eq("id", postId)
+    .eq("author_id", profile.id);
+
+  if (updateError) {
+    await removeImages(supabase, "share-images", uploaded);
+    return { error: `수정에 실패했습니다: ${updateError.message}` };
+  }
+
+  // The image-limit trigger counts rows already present, so the two writes can
+  // only be ordered insert-first when the total stays under the cap. Otherwise
+  // the old rows have to go first to make room.
+  const insertFirst = currentPaths.length + uploaded.length <= MAX_SHARE_IMAGES;
+
+  const insertRows = async () => {
+    if (uploaded.length === 0) return null;
+    const base = Date.now();
+    const { error } = await supabase.from("share_post_images").insert(
+      uploaded.map((path, index) => ({
+        post_id: postId,
+        storage_path: path,
+        sort_order: base + index,
+      })),
+    );
+    return error;
+  };
+
+  const deleteRows = async () => {
+    if (toRemove.length === 0) return null;
+    const { error } = await supabase
+      .from("share_post_images")
+      .delete()
+      .eq("post_id", postId)
+      .in("storage_path", toRemove);
+    return error;
+  };
+
+  const first = insertFirst ? await insertRows() : await deleteRows();
+  if (first) {
+    await removeImages(supabase, "share-images", uploaded);
+    return { error: `사진 변경에 실패했습니다: ${first.message}` };
+  }
+
+  const second = insertFirst ? await deleteRows() : await insertRows();
+  if (second) {
+    return { error: `사진 변경에 실패했습니다: ${second.message}` };
+  }
+
+  // Only once the rows are gone is it safe to drop the objects themselves.
+  await removeImages(supabase, "share-images", toRemove);
+
+  revalidatePath("/share");
+  revalidatePath(`/share/${postId}`);
+  redirect(`/share/${postId}`);
+}
+
+/**
+ * Author only, enforced by the share_posts_delete policy. Comments and image
+ * rows go with it through `on delete cascade`; the stored objects do not, so
+ * they are removed here.
+ */
+export async function deleteSharePost(formData: FormData): Promise<void> {
+  const profile = await requireApprovedProfile();
+  const supabase = await createClient();
+  const postId = String(formData.get("post_id") ?? "").trim();
+
+  if (!postId) redirect("/share");
+
+  const { data: images } = await supabase
+    .from("share_post_images")
+    .select("storage_path")
+    .eq("post_id", postId);
+
+  const { data, error } = await supabase
+    .from("share_posts")
+    .delete()
+    .eq("id", postId)
+    .eq("author_id", profile.id)
+    .select("id");
+
+  if (error || !data || data.length === 0) {
+    redirect(`/share/${postId}?error=delete`);
+  }
+
+  await removeImages(
+    supabase,
+    "share-images",
+    (images ?? []).map((image) => image.storage_path),
+  );
+
+  revalidatePath("/share");
+  revalidatePath("/me");
+  redirect("/share?deleted=1");
 }

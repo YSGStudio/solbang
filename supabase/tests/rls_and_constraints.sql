@@ -95,7 +95,15 @@ update public.profiles set status = 'approved'
                '00000000-0000-0000-0000-0000000000a3');
 
 insert into public.schools (id, kakao_place_id, name, address, lat, lng) values
-  ('00000000-0000-0000-0000-0000000000c1', 'kakao-1', '언남초등학교', '용인시 기흥구', 37.27, 127.11);
+  ('00000000-0000-0000-0000-0000000000c1', 'kakao-1', '언남초등학교', '용인시 기흥구', 37.27, 127.11),
+  ('00000000-0000-0000-0000-0000000000c2', 'kakao-2', '남의초등학교', '수원시 영통구', 37.25, 127.07);
+
+-- Migration 11 (R24): reviewing is scoped to your own school, so the teachers
+-- need one. All three belong to c1; nobody belongs to c2.
+update public.profiles set school_id = '00000000-0000-0000-0000-0000000000c1'
+  where id in ('00000000-0000-0000-0000-0000000000a1',
+               '00000000-0000-0000-0000-0000000000a2',
+               '00000000-0000-0000-0000-0000000000a3');
 
 insert into public.item_types (id, label, carbon_g) values
   ('00000000-0000-0000-0000-0000000000d1', '교구', 500),
@@ -111,27 +119,48 @@ insert into public.school_review_questions (id, text, sort_order) values
 
 -- item_type_id is supplied so the failure can only come from the category
 -- CHECK, not from migration 9's item-type guard.
+-- Migration 10: category is now the 대분류 and 과목 is a separate column.
 select tests.expect_error($$
-  insert into public.share_posts (author_id, title, school_level, category, item_type_id)
-  values ('00000000-0000-0000-0000-0000000000a1', '틀린 조합', 'elementary', '수학',
-          '00000000-0000-0000-0000-0000000000d1')
-$$, 'AC4  elementary + 수학 is rejected');
+  insert into public.share_posts (author_id, title, school_level, category, subject, condition, item_type_id)
+  values ('00000000-0000-0000-0000-0000000000a1', '대분류 자리에 과목', 'elementary', '수학', '공통',
+          '사용감 있음', '00000000-0000-0000-0000-0000000000d1')
+$$, 'AC4  a subject name in the 대분류 column is rejected');
+
+select tests.expect_error($$
+  insert into public.share_posts (author_id, title, school_level, category, subject, condition, item_type_id)
+  values ('00000000-0000-0000-0000-0000000000a1', '없는 과목', 'elementary', '수업교구', '한문',
+          '사용감 있음', '00000000-0000-0000-0000-0000000000d1')
+$$, 'AC4  an unknown 과목 is rejected');
+
+select tests.expect_error($$
+  insert into public.share_posts (author_id, title, school_level, category, subject, condition, item_type_id)
+  values ('00000000-0000-0000-0000-0000000000a1', '없는 상태', 'elementary', '수업교구', '공통',
+          '아주 좋음', '00000000-0000-0000-0000-0000000000d1')
+$$, 'AC4  an unknown 물건상태 is rejected');
 
 select tests.expect_ok($$
-  insert into public.share_posts (id, author_id, title, school_level, category, item_type_id, carbon_g)
+  insert into public.share_posts (id, author_id, title, school_level, category, subject, condition, item_type_id, carbon_g)
   values ('00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000a1',
-          '예약 흐름용 글', 'elementary', '수업자료',
+          '예약 흐름용 글', 'elementary', '수업교구', '공통', '사용감 있음',
           '00000000-0000-0000-0000-0000000000d1', 500)
-$$, 'AC4  elementary + 수업자료 is accepted');
+$$, 'AC4  elementary + 수업교구 + 공통 is accepted');
 
-insert into public.share_posts (id, author_id, title, school_level, category, item_type_id, carbon_g)
+-- 초등도 과목을 고른다 (초·중등 동일 3단계).
+select tests.expect_ok($$
+  insert into public.share_posts (author_id, title, school_level, category, subject, condition, item_type_id)
+  values ('00000000-0000-0000-0000-0000000000a1', '초등 수학 교구', 'elementary', '수업교구', '수학',
+          '미개봉/새것', '00000000-0000-0000-0000-0000000000d1')
+$$, 'AC4  elementary may also carry a 과목');
+
+insert into public.share_posts (id, author_id, title, school_level, category, subject, condition, item_type_id, carbon_g)
 values ('00000000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-0000000000a1',
-        '탄소 500g 글', 'elementary', '학급자료',
+        '탄소 500g 글', 'elementary', '학급자료', '공통', '사용감 있음',
         '00000000-0000-0000-0000-0000000000d1', 500),
        ('00000000-0000-0000-0000-0000000000b3', '00000000-0000-0000-0000-0000000000a1',
-        '중등 과학 글', 'secondary', '과학', '00000000-0000-0000-0000-0000000000d2', 120),
+        '중등 과학 글', 'secondary', '수업교구', '과학', '사용감 적음',
+        '00000000-0000-0000-0000-0000000000d2', 120),
        ('00000000-0000-0000-0000-0000000000b4', '00000000-0000-0000-0000-0000000000a1',
-        '사진 개수 테스트', 'secondary', '미술',
+        '사진 개수 테스트', 'secondary', '수업교구', '미술', '사용감 있음',
         '00000000-0000-0000-0000-0000000000d2', 120);
 
 -- =========================================== AC11 (club) category + limits
@@ -159,9 +188,10 @@ $$, 'AC6  5th photo is rejected');
 
 -- The trigger is per-row, so check the obvious bypass: five photos pushed in
 -- one statement rather than five.
-insert into public.share_posts (id, author_id, title, school_level, category, item_type_id)
+insert into public.share_posts (id, author_id, title, school_level, category, subject, condition, item_type_id)
 values ('00000000-0000-0000-0000-0000000000b5', '00000000-0000-0000-0000-0000000000a1',
-        '한 문장에 5장', 'secondary', '음악', '00000000-0000-0000-0000-0000000000d2');
+        '한 문장에 5장', 'secondary', '수업교구', '음악', '사용감 있음',
+        '00000000-0000-0000-0000-0000000000d2');
 
 select tests.expect_error($$
   insert into public.share_post_images (post_id, storage_path, sort_order)
@@ -280,14 +310,24 @@ $$, 'R4   teacher cannot approve another account');
 \echo ''
 \echo '--- AC5  list filtering by level + category (R8) ---'
 
+-- Migration 10: filtering is now level + 대분류 + 과목.
 select tests.assert_eq(
   (select count(*) from public.share_posts
-   where school_level = 'secondary' and category = '과학')::int, 1,
-  'AC5  secondary + 과학 matches exactly one post');
+   where school_level = 'secondary' and category = '수업교구' and subject = '과학')::int, 1,
+  'AC5  secondary + 수업교구 + 과학 matches exactly one post');
 select tests.assert_eq(
   (select title from public.share_posts
-   where school_level = 'secondary' and category = '과학'), '중등 과학 글',
+   where school_level = 'secondary' and category = '수업교구' and subject = '과학'), '중등 과학 글',
   'AC5  ...and it is the right one');
+
+-- The 대분류 alone is a coarser filter, and the 과목 axis is independent of it.
+select tests.assert_eq(
+  (select count(*) from public.share_posts
+   where school_level = 'secondary' and category = '수업교구')::int, 3,
+  'AC5  secondary + 수업교구 alone matches every secondary post so far');
+select tests.assert_eq(
+  (select count(*) from public.share_posts where subject = '공통')::int, 2,
+  'AC5  공통 spans both school levels');
 
 -- ================================================= AC7  reservation rules
 \echo ''
@@ -351,7 +391,7 @@ $$, 'R12  a non-author cannot edit an available post''s body');
 
 -- ============================================ AC8  comments while reserved
 \echo ''
-\echo '--- AC8  no new comments while reserved (R15) ---'
+\echo '--- AC8  reserved = private thread between reserver and author (R15) ---'
 
 reset role;
 insert into public.share_comments (post_id, author_id, body)
@@ -362,11 +402,38 @@ select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}', false);
 set role authenticated;
 
+-- b1 is reserved: author a1, reserver a2. Teacher C is neither.
 select tests.expect_error($$
   insert into public.share_comments (post_id, author_id, body)
   values ('00000000-0000-0000-0000-0000000000b1',
           '00000000-0000-0000-0000-0000000000a3', 'API로 직접 넣어봅니다')
-$$, 'AC8  direct insert on a reserved post is rejected');
+$$, 'AC8  a bystander cannot comment on a reserved post');
+
+-- Migration 11: the two people the reservation concerns still can.
+reset role;
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}', false);
+set role authenticated;
+select tests.expect_ok($$
+  insert into public.share_comments (post_id, author_id, body)
+  values ('00000000-0000-0000-0000-0000000000b1',
+          '00000000-0000-0000-0000-0000000000a2', '언제 찾으러 가면 될까요?')
+$$, 'AC8  the reserver may comment while reserved');
+
+reset role;
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', false);
+set role authenticated;
+select tests.expect_ok($$
+  insert into public.share_comments (post_id, author_id, body)
+  values ('00000000-0000-0000-0000-0000000000b1',
+          '00000000-0000-0000-0000-0000000000a1', '내일 오후 좋습니다')
+$$, 'AC8  the author may reply while reserved');
+
+reset role;
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}', false);
+set role authenticated;
 
 select tests.assert_eq(
   (select count(*) from public.share_comments
@@ -480,10 +547,10 @@ select tests.assert_eq(
   500::bigint, 'R16  carbon total survives the forgery attempts');
 
 -- carbon_g is derived on insert, so a hand-picked value is simply ignored.
-insert into public.share_posts (id, author_id, title, school_level, category,
-                                item_type_id, carbon_g)
+insert into public.share_posts (id, author_id, title, school_level, category, subject,
+                                condition, item_type_id, carbon_g)
 values ('00000000-0000-0000-0000-0000000000b6', '00000000-0000-0000-0000-0000000000a1',
-        '계수 위조 시도', 'secondary', '기술',
+        '계수 위조 시도', 'secondary', '수업교구', '기술', '사용감 있음',
         '00000000-0000-0000-0000-0000000000d2', 88888);
 
 select tests.assert_eq(
@@ -596,6 +663,37 @@ select tests.expect_error($$
   values ('00000000-0000-0000-0000-000000000092',
           '00000000-0000-0000-0000-0000000000e2', 6)
 $$, 'R24  a score of 6 is rejected');
+
+-- Migration 11 (R24): rating is limited to your own school. Teacher C belongs
+-- to c1, so c2 has to be refused even with a well-formed insert.
+select tests.expect_error($$
+  insert into public.school_reviews (school_id, user_id)
+  values ('00000000-0000-0000-0000-0000000000c2', '00000000-0000-0000-0000-0000000000a3')
+$$, 'R24  a teacher cannot review a school they do not belong to');
+
+select tests.assert_eq(
+  (select count(*) from public.school_reviews
+   where school_id = '00000000-0000-0000-0000-0000000000c2')::int, 0,
+  'R24  ...and nothing was written for that school');
+
+-- A teacher with no school at all may rate nothing.
+reset role;
+update public.profiles set school_id = null
+  where id = '00000000-0000-0000-0000-0000000000a3';
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}', false);
+set role authenticated;
+select tests.expect_error($$
+  insert into public.school_reviews (school_id, user_id)
+  values ('00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-0000000000a3')
+$$, 'R24  a teacher with no school set cannot review anything');
+
+reset role;
+update public.profiles set school_id = '00000000-0000-0000-0000-0000000000c1'
+  where id = '00000000-0000-0000-0000-0000000000a3';
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}', false);
+set role authenticated;
 
 -- ============================================= AC15 deactivated questions
 \echo ''

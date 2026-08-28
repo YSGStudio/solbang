@@ -2,7 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 
-export type ImageBucket = "share-images" | "club-images";
+export type ImageBucket = "share-images" | "club-images" | "board-images";
 
 const ALLOWED_TYPES = new Set([
   "image/jpeg",
@@ -22,8 +22,8 @@ function extensionFor(file: File): string {
 
 /**
  * T8. Uploads into `<userId>/<uuid>.<ext>`, which is what the storage policy
- * in migration 8 keys on. `maxImages` is the caller's limit (4 for share,
- * 2 for clubs); the database triggers enforce the same numbers, so a bypass
+ * in migration 8 (widened in migration 10) keys on. `maxImages` is the
+ * caller's limit (4 for share, 2 for clubs and the board); the database triggers enforce the same numbers, so a bypass
  * here still fails on insert. (R10, R19)
  */
 export async function uploadPostImages(

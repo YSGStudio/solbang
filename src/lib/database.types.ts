@@ -10,6 +10,7 @@ export type ProfileRole = "teacher" | "admin";
 export type ProfileStatus = "pending" | "approved" | "rejected";
 export type SchoolLevelDb = "elementary" | "secondary";
 export type ShareStatusDb = "available" | "reserved" | "completed";
+export type ClubKindDb = "club" | "flash";
 
 type Timestamps = { created_at: string };
 
@@ -47,8 +48,11 @@ export type SharePost = Timestamps & {
   author_id: string;
   title: string;
   description: string;
+  usage_tips: string;
+  condition: string;
   school_level: SchoolLevelDb;
   category: string;
+  subject: string;
   item_type_id: string | null;
   carbon_g: number;
   status: ShareStatusDb;
@@ -78,8 +82,19 @@ export type ClubPost = Timestamps & {
   author_id: string;
   title: string;
   description: string;
-  school_level: SchoolLevelDb;
+  /** Migration 10: 소모임 and 번개모임 share this table. */
+  kind: ClubKindDb;
+  // The club taxonomy is a later piece of work, so neither field is required.
+  school_level: SchoolLevelDb | null;
   category: string;
+  updated_at: string;
+};
+
+export type BoardPost = Timestamps & {
+  id: string;
+  author_id: string;
+  title: string;
+  description: string;
   updated_at: string;
 };
 
@@ -156,6 +171,9 @@ export type Database = {
       club_posts: Table<ClubPost>;
       club_post_images: Table<PostImage>;
       club_comments: Table<PostComment>;
+      board_posts: Table<BoardPost>;
+      board_post_images: Table<PostImage>;
+      board_comments: Table<PostComment>;
       school_review_questions: Table<SchoolReviewQuestion>;
       school_reviews: Table<SchoolReview>;
       school_review_answers: Table<SchoolReviewAnswer>;

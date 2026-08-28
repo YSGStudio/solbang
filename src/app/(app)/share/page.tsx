@@ -1,13 +1,20 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { requireApprovedProfile } from "@/lib/auth";
-import { isSchoolLevel, type ShareStatus } from "@/lib/categories";
+import {
+  isSchoolLevel,
+  isShareCategory,
+  isSubject,
+  type ShareStatus,
+} from "@/lib/categories";
 import { CategoryFilter } from "@/components/CategoryFilter";
 import { StatusTag } from "@/components/StatusTag";
 import { signedUrlsFor } from "@/lib/storage";
 import { formatDate } from "@/lib/format";
 import { distanceKm, parseDistanceKm } from "@/lib/distance";
 import { ShareMap, type ShareMapSchool } from "@/components/ShareMap";
+import { ViewTabs } from "@/components/ViewTabs";
+import { isShareView, type ShareView } from "@/lib/shareView";
 
 export const dynamic = "force-dynamic";
 
@@ -15,10 +22,20 @@ export const dynamic = "force-dynamic";
 export default async function SharePage({
   searchParams,
 }: {
-  searchParams: Promise<{ level?: string; category?: string; distance?: string; q?: string }>;
+  searchParams: Promise<{
+    level?: string;
+    category?: string;
+    subject?: string;
+    distance?: string;
+    q?: string;
+    view?: string;
+    deleted?: string;
+  }>;
 }) {
   const profile = await requireApprovedProfile();
-  const { level, category, distance, q } = await searchParams;
+  const { level, category, subject, distance, q, view, deleted } =
+    await searchParams;
+  const activeView: ShareView = isShareView(view) ? view : "list";
   const radiusKm = parseDistanceKm(distance);
   const searchText = q?.trim().toLocaleLowerCase("ko") ?? "";
   const supabase = await createClient();
@@ -30,15 +47,16 @@ export default async function SharePage({
   let query = supabase
     .from("share_posts")
     .select(
-      "id, title, school_level, category, status, carbon_g, created_at, " +
+      "id, title, school_level, category, subject, condition, status, carbon_g, created_at, " +
         "author:author_id (nickname, school:school_id (id, name, lat, lng)), images:share_post_images (storage_path, sort_order)",
     )
     .order("created_at", { ascending: false })
     .limit(100);
 
-  // R8: no filter means everything.
+  // R8: no filter means everything. Level, 대분류 and 과목 are independent axes.
   if (isSchoolLevel(level)) query = query.eq("school_level", level);
-  if (category) query = query.eq("category", category);
+  if (isShareCategory(category)) query = query.eq("category", category);
+  if (isSubject(subject)) query = query.eq("subject", subject);
 
   const { data: posts, error } = await query;
 
@@ -47,6 +65,8 @@ export default async function SharePage({
     title: string;
     school_level: "elementary" | "secondary";
     category: string;
+    subject: string;
+    condition: string;
     status: ShareStatus;
     carbon_g: number;
     created_at: string;
@@ -59,7 +79,11 @@ export default async function SharePage({
     ? { name: mySchoolData.name, lat: mySchoolData.lat, lng: mySchoolData.lng }
     : null;
   const rows = allRows.filter((post) => {
-    if (searchText && !`${post.title} ${post.category}`.toLocaleLowerCase("ko").includes(searchText)) return false;
+    // The search box matches the taxonomy as well as the title, so typing
+    // "과학" finds subject-tagged posts without touching the dropdowns.
+    const haystack = `${post.title} ${post.category} ${post.subject}`
+      .toLocaleLowerCase("ko");
+    if (searchText && !haystack.includes(searchText)) return false;
     const school = post.author?.school;
     if (!mySchool || !school || school.lat === null || school.lng === null) return false;
     return distanceKm(mySchool, { lat: school.lat, lng: school.lng }) <= radiusKm;
@@ -102,27 +126,42 @@ export default async function SharePage({
       </div>
       <p className="muted">쓰던 교육용 물건을 다른 선생님께 나눠 주세요.</p>
 
+      {deleted ? (
+        <p className="notice notice-info">나눔 글을 삭제했습니다.</p>
+      ) : null}
+
       <CategoryFilter />
+
+      <ViewTabs active={activeView} />
 
       {!mySchool ? (
         <p className="notice notice-warn">
           거리별 나눔을 보려면 좌표가 등록된 나의 학교가 필요합니다. <Link href="/me"><u>내 정보에서 학교 설정하기</u></Link>
         </p>
-      ) : (
-        <>
-          <div className="spread">
-            <h2 style={{ marginTop: 4 }}>내 학교 주변 지도</h2>
-            <span className="muted">{mySchool.name} 기준 {radiusKm}km</span>
-          </div>
-          <ShareMap center={mySchool} radiusKm={radiusKm} schools={[...mapSchoolById.values()]} />
-        </>
-      )}
+      ) : null}
 
       {error ? (
         <p className="notice notice-error">목록을 불러오지 못했습니다.</p>
       ) : null}
 
-      {rows.length === 0 ? (
+      {activeView === "map" ? (
+        mySchool ? (
+          <>
+            <div className="spread">
+              <h2 style={{ marginTop: 4 }}>내 학교 주변 지도</h2>
+              <span className="muted">{mySchool.name} 기준 {radiusKm}km</span>
+            </div>
+            <ShareMap
+              center={mySchool}
+              radiusKm={radiusKm}
+              schools={[...mapSchoolById.values()]}
+            />
+            <p className="muted">
+              지도에 표시된 학교 {mapSchoolById.size}곳 · 나눔 글 {rows.length}개
+            </p>
+          </>
+        ) : null
+      ) : rows.length === 0 ? (
         <p className="notice notice-info">
           조건에 맞는 나눔 글이 아직 없습니다.
         </p>
@@ -151,6 +190,7 @@ export default async function SharePage({
                       <div className="row" style={{ gap: 6, marginBottom: 4 }}>
                         <StatusTag status={post.status} />
                         <span className="tag tag-plain">{post.category}</span>
+                        <span className="tag tag-plain">{post.subject}</span>
                       </div>
                       <h3>{post.title}</h3>
                       <p className="muted" style={{ margin: 0 }}>
