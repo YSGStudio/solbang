@@ -49,7 +49,7 @@ export function CategoryFilter() {
     <form className="card" method="get" style={{ marginBottom: 16 }}>
       <div className="field">
         <label htmlFor="share-search">물건 검색</label>
-        <div className="row" style={{ flexWrap: "nowrap" }}>
+        <div className="search-row">
           <input
             id="share-search"
             type="search"
