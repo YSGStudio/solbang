@@ -20,10 +20,10 @@ export const dynamic = "force-dynamic";
 export default async function ClubsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ kind?: string }>;
+  searchParams: Promise<{ kind?: string; deleted?: string }>;
 }) {
   await requireApprovedProfile();
-  const { kind: rawKind } = await searchParams;
+  const { kind: rawKind, deleted } = await searchParams;
   const kind: ClubKind = isClubKind(rawKind) ? rawKind : "club";
   const supabase = await createClient();
 
@@ -68,6 +68,10 @@ export default async function ClubsPage({
         </Link>
       </div>
       <p className="muted">{CLUB_KIND_BLURBS[kind]}</p>
+
+      {deleted ? (
+        <p className="notice notice-info">글을 삭제했습니다.</p>
+      ) : null}
 
       <KindTabs active={kind} />
 

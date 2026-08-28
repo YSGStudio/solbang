@@ -99,7 +99,7 @@ export async function addBoardComment(formData: FormData): Promise<void> {
   redirect(`/board/${postId}`);
 }
 
-/** Author only, enforced by board_posts_delete. */
+/** The author, or an administrator. Enforced by board_posts_delete. */
 export async function deleteBoardPost(formData: FormData): Promise<void> {
   const profile = await requireApprovedProfile();
   const supabase = await createClient();
@@ -112,12 +112,11 @@ export async function deleteBoardPost(formData: FormData): Promise<void> {
     .select("storage_path")
     .eq("post_id", postId);
 
-  const { data, error } = await supabase
-    .from("board_posts")
-    .delete()
-    .eq("id", postId)
-    .eq("author_id", profile.id)
-    .select("id");
+  const remove = supabase.from("board_posts").delete().eq("id", postId);
+  const { data, error } = await (profile.role === "admin"
+    ? remove
+    : remove.eq("author_id", profile.id)
+  ).select("id");
 
   if (error || !data || data.length === 0) {
     redirect(`/board/${postId}?error=delete`);

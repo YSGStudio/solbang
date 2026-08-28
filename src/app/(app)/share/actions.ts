@@ -367,9 +367,10 @@ export async function updateSharePost(
 }
 
 /**
- * Author only, enforced by the share_posts_delete policy. Comments and image
- * rows go with it through `on delete cascade`; the stored objects do not, so
- * they are removed here.
+ * The author, or an administrator moderating. Enforced by the
+ * share_posts_delete policy (migration 12); the filter below only decides
+ * which rows we ask for. Comments and image rows go with it through
+ * `on delete cascade`; the stored objects do not, so they are removed here.
  */
 export async function deleteSharePost(formData: FormData): Promise<void> {
   const profile = await requireApprovedProfile();
@@ -383,12 +384,12 @@ export async function deleteSharePost(formData: FormData): Promise<void> {
     .select("storage_path")
     .eq("post_id", postId);
 
-  const { data, error } = await supabase
-    .from("share_posts")
-    .delete()
-    .eq("id", postId)
-    .eq("author_id", profile.id)
-    .select("id");
+  const remove = supabase.from("share_posts").delete().eq("id", postId);
+  // An admin deletes any post; everyone else only ever their own.
+  const { data, error } = await (profile.role === "admin"
+    ? remove
+    : remove.eq("author_id", profile.id)
+  ).select("id");
 
   if (error || !data || data.length === 0) {
     redirect(`/share/${postId}?error=delete`);

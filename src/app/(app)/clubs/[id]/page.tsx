@@ -3,10 +3,11 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { requireApprovedProfile } from "@/lib/auth";
 import { SubmitButton } from "@/components/SubmitButton";
+import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { signedUrlsFor } from "@/lib/storage";
 import { formatDateTime } from "@/lib/format";
 import { CLUB_KIND_LABELS, isClubKind } from "@/lib/categories";
-import { addClubComment } from "../actions";
+import { addClubComment, deleteClubPost } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ export default async function ClubPostPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ error?: string }>;
 }) {
-  await requireApprovedProfile();
+  const profile = await requireApprovedProfile();
   const { id } = await params;
   const { error: errorCode } = await searchParams;
   const supabase = await createClient();
@@ -26,7 +27,7 @@ export default async function ClubPostPage({
   const { data } = await supabase
     .from("club_posts")
     .select(
-      "id, title, description, kind, created_at, " +
+      "id, title, description, kind, created_at, author_id, " +
         "author:author_id (nickname), " +
         "images:club_post_images (storage_path, sort_order), " +
         "comments:club_comments (id, body, created_at, author:author_id (nickname))",
@@ -42,6 +43,7 @@ export default async function ClubPostPage({
     description: string;
     kind: string;
     created_at: string;
+    author_id: string;
     author: { nickname: string } | null;
     images: { storage_path: string; sort_order: number }[];
     comments: {
@@ -54,6 +56,9 @@ export default async function ClubPostPage({
   const post = data as unknown as Post;
   const kind = isClubKind(post.kind) ? post.kind : "club";
   const kindLabel = CLUB_KIND_LABELS[kind];
+  const isAuthor = post.author_id === profile.id;
+  const isAdmin = profile.role === "admin";
+  const canDelete = isAuthor || isAdmin;
 
   const images = [...post.images].sort((a, b) => a.sort_order - b.sort_order);
   const urls = await signedUrlsFor(
@@ -77,7 +82,9 @@ export default async function ClubPostPage({
         <p className="notice notice-error">
           {errorCode === "empty-comment"
             ? "댓글 내용을 입력해 주세요."
-            : "댓글을 저장하지 못했습니다."}
+            : errorCode === "delete"
+              ? "글을 삭제하지 못했습니다."
+              : "댓글을 저장하지 못했습니다."}
         </p>
       ) : null}
 
@@ -107,6 +114,26 @@ export default async function ClubPostPage({
       <div className="card">
         <p style={{ whiteSpace: "pre-wrap", margin: 0 }}>{post.description}</p>
       </div>
+
+      {canDelete ? (
+        <div className="row">
+          <form action={deleteClubPost}>
+            <input type="hidden" name="post_id" value={post.id} />
+            <input type="hidden" name="kind" value={kind} />
+            <ConfirmSubmitButton
+              className="btn-danger"
+              pendingLabel="삭제 중…"
+              message={
+                isAuthor
+                  ? `이 ${kindLabel} 글을 삭제할까요? 사진과 댓글도 함께 사라집니다.`
+                  : "운영자 권한으로 다른 선생님의 글을 삭제합니다. 사진과 댓글도 함께 사라집니다. 계속할까요?"
+              }
+            >
+              {isAuthor ? "삭제" : "운영자 삭제"}
+            </ConfirmSubmitButton>
+          </form>
+        </div>
+      ) : null}
 
       <h2>댓글 {comments.length}개</h2>
 

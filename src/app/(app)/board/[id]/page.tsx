@@ -58,6 +58,8 @@ export default async function BoardPostPage({
   };
   const post = data as unknown as Post;
   const isAuthor = post.author_id === profile.id;
+  const isAdmin = profile.role === "admin";
+  const canDelete = isAuthor || isAdmin;
 
   const images = [...post.images].sort((a, b) => a.sort_order - b.sort_order);
   const urls = await signedUrlsFor(
@@ -105,16 +107,20 @@ export default async function BoardPostPage({
         <p style={{ whiteSpace: "pre-wrap", margin: 0 }}>{post.description}</p>
       </div>
 
-      {isAuthor ? (
+      {canDelete ? (
         <div className="row">
           <form action={deleteBoardPost}>
             <input type="hidden" name="post_id" value={post.id} />
             <ConfirmSubmitButton
               className="btn-danger"
               pendingLabel="삭제 중…"
-              message="이 글을 삭제할까요? 사진과 댓글도 함께 사라집니다."
+              message={
+                isAuthor
+                  ? "이 글을 삭제할까요? 사진과 댓글도 함께 사라집니다."
+                  : "운영자 권한으로 다른 선생님의 글을 삭제합니다. 사진과 댓글도 함께 사라집니다. 계속할까요?"
+              }
             >
-              삭제
+              {isAuthor ? "삭제" : "운영자 삭제"}
             </ConfirmSubmitButton>
           </form>
         </div>

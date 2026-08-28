@@ -7,7 +7,11 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { signedUrlsFor } from "@/lib/storage";
 import { formatCarbon, formatDateTime } from "@/lib/format";
-import type { ShareStatus } from "@/lib/categories";
+import {
+  SCHOOL_LEVEL_LABELS,
+  type SchoolLevel,
+  type ShareStatus,
+} from "@/lib/categories";
 import {
   addShareComment,
   cancelReservation,
@@ -23,7 +27,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   cancel: "예약을 취소하지 못했습니다.",
   complete: "나눔 완료로 바꾸지 못했습니다. 예약된 글만 완료할 수 있습니다.",
   comment:
-    "댓글을 저장하지 못했습니다. 예약중에는 예약한 선생님과 글쓴이만 쓸 수 있습니다.",
+    "댓글을 저장하지 못했습니다. 예약한 선생님과 글쓴이만 쓸 수 있습니다.",
   "empty-comment": "댓글 내용을 입력해 주세요.",
   delete: "글을 삭제하지 못했습니다. 글쓴이만 삭제할 수 있습니다.",
   "edit-completed": "나눔이 완료된 글은 수정할 수 없습니다.",
@@ -64,6 +68,7 @@ export default async function SharePostPage({
     description: string;
     usage_tips: string;
     condition: string;
+    school_level: SchoolLevel;
     category: string;
     subject: string;
     status: ShareStatus;
@@ -106,11 +111,18 @@ export default async function SharePostPage({
   // The author may rewrite the post until it is completed; deleting it stays
   // available afterwards, since the row is theirs either way.
   const canEdit = isAuthor && post.status !== "completed";
-  // R15 (migration 11): a reservation turns the thread private. Only the
-  // reserver and the author may write; everyone else can still read. It opens
-  // back up once the reservation is cancelled or the nanum completes.
-  const commentsBlocked =
-    post.status === "reserved" && !isReserver && !isAuthor;
+  // Migration 12: administrators may remove any post for moderation. They
+  // still cannot edit one — only the author can.
+  const isAdmin = profile.role === "admin";
+  const canDelete = isAuthor || isAdmin;
+  // R15 (migration 13): commenting is earned by reserving.
+  //   나눔중   아무도 쓸 수 없다 — 예약이 곧 문의 자격이다.
+  //   예약중   예약자와 글쓴이만.
+  //   나눔완료 예약자와 글쓴이만, 마무리를 위해.
+  // Reading is never restricted, and existing comments are never removed.
+  const commentsOpenToMe =
+    post.status !== "available" && (isReserver || isAuthor);
+  const commentsBlocked = !commentsOpenToMe;
 
   return (
     <main>
@@ -122,24 +134,22 @@ export default async function SharePostPage({
         <p className="notice notice-error">{ERROR_MESSAGES[errorCode]}</p>
       ) : null}
 
-      <div className="row" style={{ gap: 6, marginBottom: 6 }}>
-        <StatusTag status={post.status} />
-        <span className="tag tag-plain">{post.category}</span>
-        <span className="tag tag-plain">{post.subject}</span>
-        <span className="tag tag-plain">{post.condition}</span>
-        {post.item_type ? (
-          <span className="tag tag-plain">{post.item_type.label}</span>
-        ) : null}
-      </div>
-
-      <h1>{post.title}</h1>
-      <p className="muted">
-        {post.author?.nickname ?? "알 수 없음"} · {formatDateTime(post.created_at)}
-        {" · "}나눔 완료 시 {formatCarbon(post.carbon_g)} 절감
-      </p>
+      <header className="share-detail-header">
+        <div className="row" style={{ gap: 6 }}>
+          <StatusTag status={post.status} />
+          <span className="tag tag-plain">{SCHOOL_LEVEL_LABELS[post.school_level]}</span>
+          <span className="tag tag-plain">{post.category}</span>
+          <span className="tag tag-plain">{post.subject}</span>
+        </div>
+        <h1>{post.title}</h1>
+        <div className="share-detail-byline">
+          <strong>{post.author?.nickname ?? "알 수 없음"}</strong>
+          <span>{formatDateTime(post.created_at)}</span>
+        </div>
+      </header>
 
       {images.length > 0 ? (
-        <div className="thumb-grid" style={{ margin: "16px 0" }}>
+        <div className="thumb-grid share-detail-images">
           {images.map((image, index) => {
             const url = urls.get(image.storage_path);
             return url ? (
@@ -156,16 +166,27 @@ export default async function SharePostPage({
         </div>
       ) : null}
 
-      <div className="card">
-        <p style={{ whiteSpace: "pre-wrap", margin: 0 }}>{post.description}</p>
-      </div>
+      <section className="share-detail-section">
+        <h2>물건 설명</h2>
+        <p className="share-detail-copy">{post.description}</p>
+      </section>
 
       {post.usage_tips ? (
-        <div className="card">
-          <h2 style={{ marginTop: 0 }}>활용 팁</h2>
-          <p style={{ whiteSpace: "pre-wrap", margin: 0 }}>{post.usage_tips}</p>
-        </div>
+        <section className="share-detail-section share-detail-tip">
+          <h2>활용 팁</h2>
+          <p className="share-detail-copy">{post.usage_tips}</p>
+        </section>
       ) : null}
+
+      <section className="share-detail-section">
+        <h2>물건 정보</h2>
+        <dl className="share-detail-facts">
+          <div><dt>물건 상태</dt><dd>{post.condition}</dd></div>
+          <div><dt>품목 유형</dt><dd>{post.item_type?.label ?? "미분류"}</dd></div>
+          <div><dt>분류</dt><dd>{SCHOOL_LEVEL_LABELS[post.school_level]} · {post.category} · {post.subject}</dd></div>
+          <div><dt>예상 탄소 절감</dt><dd>{formatCarbon(post.carbon_g)}</dd></div>
+        </dl>
+      </section>
 
       {post.status === "reserved" && post.reserver ? (
         <p className="notice notice-warn">
@@ -215,19 +236,21 @@ export default async function SharePostPage({
           </Link>
         ) : null}
 
-        {isAuthor ? (
+        {canDelete ? (
           <form action={deleteSharePost}>
             <input type="hidden" name="post_id" value={post.id} />
             <ConfirmSubmitButton
               className="btn-danger"
               pendingLabel="삭제 중…"
               message={
-                post.status === "reserved"
-                  ? "예약한 선생님이 있는 글입니다. 정말 삭제할까요? 사진과 댓글도 함께 사라집니다."
-                  : "이 글을 삭제할까요? 사진과 댓글도 함께 사라집니다."
+                !isAuthor
+                  ? "운영자 권한으로 다른 선생님의 글을 삭제합니다. 사진과 댓글도 함께 사라집니다. 계속할까요?"
+                  : post.status === "reserved"
+                    ? "예약한 선생님이 있는 글입니다. 정말 삭제할까요? 사진과 댓글도 함께 사라집니다."
+                    : "이 글을 삭제할까요? 사진과 댓글도 함께 사라집니다."
               }
             >
-              삭제
+              {isAuthor ? "삭제" : "운영자 삭제"}
             </ConfirmSubmitButton>
           </form>
         ) : null}
@@ -258,20 +281,24 @@ export default async function SharePostPage({
         <label htmlFor="body">댓글 쓰기</label>
 
         {/* R15 / AC8: say why it is closed, not just that it is. */}
-        {commentsBlocked ? (
+        {post.status === "available" ? (
           <p className="notice notice-warn">
-            예약중에는 예약한 선생님과 글쓴이만 댓글을 쓸 수 있습니다. 예약이
-            취소되거나 나눔이 완료되면 다시 쓸 수 있습니다. 위의 댓글은 그대로
-            남습니다.
+            {isAuthor
+              ? "나눔중인 글에는 댓글을 쓸 수 없습니다. 예약이 들어오면 예약한 선생님과 이야기할 수 있습니다."
+              : "예약한 뒤에야 댓글을 쓸 수 있습니다. 먼저 위에서 예약해 주세요."}
           </p>
-        ) : null}
-
-        {post.status === "reserved" && !commentsBlocked ? (
+        ) : commentsBlocked ? (
+          <p className="notice notice-warn">
+            예약한 선생님과 글쓴이만 댓글을 쓸 수 있습니다. 예약이 취소되면 다음
+            예약자에게 넘어갑니다. 위의 댓글은 그대로 남습니다.
+          </p>
+        ) : (
           <p className="notice notice-info">
-            예약중입니다. 지금은 예약한 선생님과 글쓴이끼리만 이야기할 수
-            있습니다.
+            {post.status === "reserved"
+              ? "예약한 선생님과 글쓴이끼리만 이야기할 수 있습니다."
+              : "나눔이 끝난 글입니다. 두 분끼리 마무리 이야기를 나눌 수 있습니다."}
           </p>
-        ) : null}
+        )}
 
         <textarea
           id="body"
@@ -279,11 +306,11 @@ export default async function SharePostPage({
           rows={3}
           disabled={commentsBlocked}
           placeholder={
-            commentsBlocked
-              ? "예약한 선생님과 글쓴이만 쓸 수 있습니다"
-              : post.status === "reserved"
-                ? "주고받을 시간과 장소를 정해 보세요"
-                : "궁금한 점을 남겨 주세요"
+            post.status === "available"
+              ? "예약한 뒤에 문의할 수 있습니다"
+              : commentsBlocked
+                ? "예약한 선생님과 글쓴이만 쓸 수 있습니다"
+                : "주고받을 시간과 장소를 정해 보세요"
           }
           style={{ minHeight: 90 }}
         />

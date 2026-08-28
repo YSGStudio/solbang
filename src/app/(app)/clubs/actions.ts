@@ -108,3 +108,43 @@ export async function addClubComment(formData: FormData): Promise<void> {
   revalidatePath(`/clubs/${postId}`);
   redirect(`/clubs/${postId}`);
 }
+
+/**
+ * The author, or an administrator moderating. Enforced by the
+ * club_posts_delete policy (migration 12). Comments and image rows cascade;
+ * the stored objects do not, so they are removed here.
+ */
+export async function deleteClubPost(formData: FormData): Promise<void> {
+  const profile = await requireApprovedProfile();
+  const supabase = await createClient();
+  const postId = String(formData.get("post_id") ?? "").trim();
+  const rawKind = String(formData.get("kind") ?? "club");
+  const kind: ClubKind = isClubKind(rawKind) ? rawKind : "club";
+  const listPath = kind === "club" ? "/clubs" : `/clubs?kind=${kind}`;
+
+  if (!postId) redirect("/clubs");
+
+  const { data: images } = await supabase
+    .from("club_post_images")
+    .select("storage_path")
+    .eq("post_id", postId);
+
+  const remove = supabase.from("club_posts").delete().eq("id", postId);
+  const { data, error } = await (profile.role === "admin"
+    ? remove
+    : remove.eq("author_id", profile.id)
+  ).select("id");
+
+  if (error || !data || data.length === 0) {
+    redirect(`/clubs/${postId}?error=delete`);
+  }
+
+  await removeImages(
+    supabase,
+    "club-images",
+    (images ?? []).map((image) => image.storage_path),
+  );
+
+  revalidatePath("/clubs");
+  redirect(`${listPath}${kind === "club" ? "?" : "&"}deleted=1`);
+}

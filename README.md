@@ -47,6 +47,8 @@ psql "$DATABASE_URL" -f supabase/seed.sql   # 품목 유형 + 기본 평가 질�
 | `0007_user_carbon_totals.sql` | `user_carbon_totals` 뷰 |
 | `0009_carbon_integrity.sql` | `carbon_g` 스냅샷 강제 트리거(위조 차단), `user_carbon_totals` 본인 한정 |
 | `0008_storage.sql` | Storage 버킷 2개와 objects 정책 (storage 스키마가 없으면 자동 skip) |
+| `0013_comments_require_reservation.sql` | 나눔글 댓글은 예약으로 얻는 권한 (나눔중=전원 불가, 예약중·완료=예약자·글쓴이) |
+| `0012_admin_delete.sql` | 운영자의 모든 글 삭제 권한 (나눔·소모임·게시판 + Storage 객체) |
 | `0011_review_scope_and_reserved_comments.sql` | `my_school_id()`, 본인 학교만 별점 평가(R24), 예약중 댓글은 예약자·글쓴이만(R15) |
 | `0010_categories_boards.sql` | 나눔 3단계 분류(`is_valid_share_category()`, `subject`), `usage_tips`/`condition`, `club_posts.kind`(소모임·번개모임), `board_*` 3개 테이블 + RLS, `board-images` 버킷 |
 
@@ -113,8 +115,12 @@ NEXT_PUBLIC_SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
   소모임 분류 체계는 이후 작업이다.
 - **별점 평가는 본인 학교만.** `my_school_id()`를 쓰는 RLS 정책이 경계이고,
   화면에서 폼을 감추는 것은 안내용이다. (R24, 마이그레이션 11)
-- **예약은 비공개 스레드를 연다.** 예약중인 나눔글에는 예약자와 글쓴이만 댓글을
-  쓸 수 있고, 예약이 풀리거나 완료되면 다시 전원 공개다. 기존 댓글은 그대로
-  남는다. (R15, 마이그레이션 11)
+- **댓글은 예약으로 얻는 권한이다.** 나눔중인 글에는 글쓴이를 포함해 아무도
+  댓글을 쓸 수 없고, 예약이 걸리면 예약자와 글쓴이만 쓸 수 있다. 나눔완료 뒤에도
+  두 사람만 남는다. 예약을 취소하면 나눔중으로 돌아가 잠금이 풀리고, 다음 사람이
+  예약하면 권한이 그쪽으로 넘어간다. 이미 달린 댓글은 어떤 경우에도 지워지지
+  않고 읽기는 늘 열려 있다. (R15, 마이그레이션 13)
+- **운영자는 지울 수만 있고 고칠 수는 없다.** 마이그레이션 12는 DELETE 정책만
+  넓혔다. 남의 글 수정은 여전히 `guard_share_post_transition()`이 막는다.
 - **소모임과 번개모임은 한 테이블이다.** `club_posts.kind`로 갈리고, 하단 탭이
   아니라 `/clubs` 안의 서브탭이다.

@@ -393,11 +393,28 @@ $$, 'R12  a non-author cannot edit an available post''s body');
 \echo ''
 \echo '--- AC8  reserved = private thread between reserver and author (R15) ---'
 
-reset role;
-insert into public.share_comments (post_id, author_id, body)
-values ('00000000-0000-0000-0000-0000000000b3', '00000000-0000-0000-0000-0000000000a2',
-        '이 글은 available 이라 댓글이 됩니다');
+-- 마이그레이션 13: 나눔중(available) 글에는 아무도 댓글을 쓸 수 없다.
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}', false);
+set role authenticated;
+select tests.expect_error($$
+  insert into public.share_comments (post_id, author_id, body)
+  values ('00000000-0000-0000-0000-0000000000b3',
+          '00000000-0000-0000-0000-0000000000a2', '예약도 안 했는데 댓글')
+$$, 'AC8  나눔중 글에는 제3자가 댓글을 쓸 수 없다');
 
+-- 글쓴이도 예외가 아니다. 할 말은 본문에 쓰면 된다.
+reset role;
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', false);
+set role authenticated;
+select tests.expect_error($$
+  insert into public.share_comments (post_id, author_id, body)
+  values ('00000000-0000-0000-0000-0000000000b3',
+          '00000000-0000-0000-0000-0000000000a1', '글쓴이가 남기는 메모')
+$$, 'AC8  나눔중 글에는 글쓴이도 댓글을 쓸 수 없다');
+
+reset role;
 select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}', false);
 set role authenticated;
@@ -437,8 +454,8 @@ set role authenticated;
 
 select tests.assert_eq(
   (select count(*) from public.share_comments
-   where post_id = '00000000-0000-0000-0000-0000000000b3')::int, 1,
-  'AC8  comments already on other posts are untouched');
+   where post_id = '00000000-0000-0000-0000-0000000000b3')::int, 0,
+  'AC8  나눔중 글에는 결국 한 건도 쓰이지 않았다');
 
 -- =========================================== AC9  cancel / complete / lock
 \echo ''
@@ -460,15 +477,56 @@ select tests.assert_eq(
   (select reserved_by from public.share_posts where id = '00000000-0000-0000-0000-0000000000b1'),
   null::uuid, 'AC9  reserved_by was cleared');
 
--- comments work again once it is no longer reserved
+-- 마이그레이션 13: 취소하면 다시 available 이므로 잠금이 풀리고, 그 결과
+-- 아무도 못 쓰는 상태로 돌아간다. 다음 사람이 예약하면 다시 열린다.
 select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}', false);
 set role authenticated;
+select tests.expect_error($$
+  insert into public.share_comments (post_id, author_id, body)
+  values ('00000000-0000-0000-0000-0000000000b1',
+          '00000000-0000-0000-0000-0000000000a3', '취소됐으니 써볼까')
+$$, 'AC8  예약이 취소되면 다시 아무도 댓글을 쓸 수 없다');
+
+-- 이미 달린 댓글은 취소로 사라지지 않는다.
+select tests.assert_eq(
+  (select count(*) from public.share_comments
+   where post_id = '00000000-0000-0000-0000-0000000000b1')::int, 2,
+  'AC8  예약중에 오간 댓글은 취소 후에도 남는다');
+
+-- 다음 사람이 예약하면 그 사람에게 댓글 권한이 넘어간다.
+reset role;
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}', false);
+set role authenticated;
+update public.share_posts
+   set status = 'reserved', reserved_by = '00000000-0000-0000-0000-0000000000a3'
+ where id = '00000000-0000-0000-0000-0000000000b1';
 select tests.expect_ok($$
   insert into public.share_comments (post_id, author_id, body)
   values ('00000000-0000-0000-0000-0000000000b1',
-          '00000000-0000-0000-0000-0000000000a3', '다시 댓글이 됩니다')
-$$, 'AC8  commenting works again after the reservation is cancelled');
+          '00000000-0000-0000-0000-0000000000a3', '새 예약자입니다')
+$$, 'AC8  새 예약자는 댓글을 쓸 수 있다');
+
+-- 직전 예약자는 더 이상 못 쓴다.
+reset role;
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}', false);
+set role authenticated;
+select tests.expect_error($$
+  insert into public.share_comments (post_id, author_id, body)
+  values ('00000000-0000-0000-0000-0000000000b1',
+          '00000000-0000-0000-0000-0000000000a2', '이전 예약자입니다')
+$$, 'AC8  예약이 넘어가면 이전 예약자는 못 쓴다');
+
+-- 원상복구: 이 뒤의 AC9/AC10 테스트가 available 을 기대한다.
+reset role;
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}', false);
+set role authenticated;
+update public.share_posts set status = 'available', reserved_by = null
+ where id = '00000000-0000-0000-0000-0000000000b1';
+reset role;
 
 -- available -> completed must not skip the reserved step
 reset role;
@@ -694,6 +752,53 @@ update public.profiles set school_id = '00000000-0000-0000-0000-0000000000c1'
 select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}', false);
 set role authenticated;
+
+-- ================================================ migration 12: admin delete
+\echo ''
+\echo '--- 운영자는 남의 글도 지울 수 있다 (마이그레이션 12) ---'
+
+-- A plain teacher still cannot touch someone else's post.
+reset role;
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a2","role":"authenticated"}', false);
+set role authenticated;
+
+select tests.assert_eq(
+  (select count(*) from public.share_posts
+   where id = '00000000-0000-0000-0000-0000000000b2')::int, 1,
+  'ADMIN the target post exists to begin with');
+
+delete from public.share_posts where id = '00000000-0000-0000-0000-0000000000b2';
+select tests.assert_eq(
+  (select count(*) from public.share_posts
+   where id = '00000000-0000-0000-0000-0000000000b2')::int, 1,
+  'ADMIN a teacher deleting another teacher post writes nothing');
+
+-- The admin can.
+reset role;
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a0","role":"authenticated"}', false);
+set role authenticated;
+
+delete from public.share_posts where id = '00000000-0000-0000-0000-0000000000b2';
+select tests.assert_eq(
+  (select count(*) from public.share_posts
+   where id = '00000000-0000-0000-0000-0000000000b2')::int, 0,
+  'ADMIN an admin can delete another teacher share post');
+
+delete from public.club_posts where id = '00000000-0000-0000-0000-0000000000f1';
+select tests.assert_eq(
+  (select count(*) from public.club_posts
+   where id = '00000000-0000-0000-0000-0000000000f1')::int, 0,
+  'ADMIN an admin can delete another teacher club post');
+
+-- Widening DELETE must not have widened UPDATE.
+select tests.expect_error($$
+  update public.share_posts set title = '운영자가 고침'
+   where id = '00000000-0000-0000-0000-0000000000b3'
+$$, 'ADMIN an admin still cannot edit someone else''s post');
+
+reset role;
 
 -- ============================================= AC15 deactivated questions
 \echo ''

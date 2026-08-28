@@ -1,5 +1,5 @@
 -- =============================================================
--- 솔방울(shareSchool) 스키마 : 마이그레이션 0001~0011 + 시드
+-- 솔방울(shareSchool) 스키마 : 마이그레이션 0001~0013 + 시드
 -- Supabase 대시보드 > SQL Editor 에 통째로 붙여넣고 Run.
 -- =============================================================
 
@@ -1355,6 +1355,129 @@ begin
     raise exception '예약중에는 예약한 선생님과 글쓴이만 댓글을 쓸 수 있습니다'
       using errcode = 'check_violation';
   end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists share_comments_block_reserved on public.share_comments;
+create trigger share_comments_block_reserved
+  before insert on public.share_comments
+  for each row execute function public.block_comment_while_reserved();
+
+
+-- >>>>>>>>>> 0012_admin_delete.sql <<<<<<<<<<
+
+-- Migration 12: administrators may delete any post.
+--
+-- Until now every delete policy was author-only, so moderation was impossible
+-- without the service role. Deleting the post row is enough for its images and
+-- comments (both cascade), but the stored objects live in Storage and are
+-- keyed by the uploader's folder, so that policy has to widen too — otherwise
+-- an admin removes the post and leaves the photos orphaned in the bucket.
+--
+-- Only DELETE is widened. An admin still cannot edit someone else's post: the
+-- update policies and guard_share_post_transition() are untouched.
+
+drop policy if exists share_posts_delete on public.share_posts;
+create policy share_posts_delete on public.share_posts
+  for delete to authenticated
+  using (
+    public.is_approved()
+    and (author_id = auth.uid() or public.is_admin())
+  );
+
+drop policy if exists club_posts_delete on public.club_posts;
+create policy club_posts_delete on public.club_posts
+  for delete to authenticated
+  using (
+    public.is_approved()
+    and (author_id = auth.uid() or public.is_admin())
+  );
+
+drop policy if exists board_posts_delete on public.board_posts;
+create policy board_posts_delete on public.board_posts
+  for delete to authenticated
+  using (
+    public.is_approved()
+    and (author_id = auth.uid() or public.is_admin())
+  );
+
+-- ----------------------------------------------------- storage objects
+-- Same three buckets as migration 10, plus the admin escape hatch.
+do $$
+begin
+  if to_regclass('storage.buckets') is null then
+    raise notice 'storage schema not present - skipping';
+    return;
+  end if;
+
+  drop policy if exists post_images_delete on storage.objects;
+
+  execute $p$
+    create policy post_images_delete on storage.objects
+      for delete to authenticated
+      using (
+        bucket_id in ('share-images','club-images','board-images')
+        and public.is_approved()
+        and (
+          (storage.foldername(name))[1] = auth.uid()::text
+          or public.is_admin()
+        )
+      )
+  $p$;
+end
+$$;
+
+
+-- >>>>>>>>>> 0013_comments_require_reservation.sql <<<<<<<<<<
+
+-- Migration 13: commenting on a share post is earned by reserving it.
+--
+-- R15 rewritten again. The rule is now:
+--
+--   available  나눔중    아무도 댓글을 쓸 수 없다. 예약이 곧 문의 자격이다.
+--   reserved   예약중    예약자와 글쓴이만.
+--   completed  나눔완료  예약자와 글쓴이만. 거래 당사자끼리 마무리할 수 있게.
+--
+-- 예약이 취소되면 status 가 available 로 돌아가므로 잠금도 함께 풀리고,
+-- 다음 사람이 예약해서 다시 문의할 수 있다. 이미 달린 댓글은 어느 경우에도
+-- 지워지지 않는다.
+--
+-- reserved_by survives the move to completed (guard_share_post_transition only
+-- stamps completed_at), so the finished thread keeps both of its participants.
+
+create or replace function public.block_comment_while_reserved()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  post_status   text;
+  post_author   uuid;
+  post_reserver uuid;
+begin
+  select status, author_id, reserved_by
+    into post_status, post_author, post_reserver
+  from public.share_posts where id = new.post_id;
+
+  if post_status is null then
+    raise exception '글을 찾을 수 없습니다' using errcode = 'check_violation';
+  end if;
+
+  -- Nobody talks on an unreserved item, not even its owner. The owner has the
+  -- post body for anything they want to say up front.
+  if post_status = 'available' then
+    raise exception '예약한 뒤에야 댓글을 쓸 수 있습니다'
+      using errcode = 'check_violation';
+  end if;
+
+  if new.author_id is distinct from post_reserver
+     and new.author_id is distinct from post_author then
+    raise exception '예약한 선생님과 글쓴이만 댓글을 쓸 수 있습니다'
+      using errcode = 'check_violation';
+  end if;
+
   return new;
 end;
 $$;
