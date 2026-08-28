@@ -15,6 +15,10 @@ const nextConfig: NextConfig = {
     "/share/[id]/tips-pdf": [
       "./node_modules/@fontsource/noto-sans-kr/files/noto-sans-kr-korean-400-normal.woff",
       "./node_modules/@fontsource/noto-sans-kr/files/noto-sans-kr-korean-700-normal.woff",
+      // pdfkit 은 기본 폰트(Helvetica) 메트릭을 동적 require 로 읽는다.
+      // 정적 분석에 걸리지 않아 트레이서가 빠뜨리고, 배포에서만
+      // MODULE_NOT_FOUND: js/standard-fonts/Helvetica.cjs 로 죽는다.
+      "./node_modules/pdfkit/js/**",
     ],
   },
 };
