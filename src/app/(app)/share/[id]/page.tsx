@@ -173,7 +173,14 @@ export default async function SharePostPage({
 
       {post.usage_tips ? (
         <section className="share-detail-section share-detail-tip">
-          <h2>활용 팁</h2>
+          <div className="share-detail-section-heading">
+            <h2>활용 팁</h2>
+            {isReserver ? (
+              <a href={`/share/${post.id}/tips-pdf`} className="btn btn-pdf" download>
+                PDF로 내려받기
+              </a>
+            ) : null}
+          </div>
           <p className="share-detail-copy">{post.usage_tips}</p>
         </section>
       ) : null}

@@ -18,10 +18,10 @@ export async function submitSchoolReview(formData: FormData): Promise<void> {
   const schoolId = String(formData.get("school_id") ?? "");
 
   if (!profile.school_id) {
-    redirect(`/schools/${schoolId}?error=no-school`);
+    redirect(`/schools/${schoolId}?view=mine&error=no-school`);
   }
   if (profile.school_id !== schoolId) {
-    redirect(`/schools/${schoolId}?error=not-my-school`);
+    redirect(`/schools/${schoolId}?view=mine&error=not-my-school`);
   }
 
   const scores: { questionId: string; score: number }[] = [];
@@ -34,7 +34,7 @@ export async function submitSchoolReview(formData: FormData): Promise<void> {
   }
 
   if (scores.length === 0) {
-    redirect(`/schools/${schoolId}?error=empty`);
+    redirect(`/schools/${schoolId}?view=mine&error=empty`);
   }
 
   // Upsert the review row first so re-rating reuses it rather than adding one.
@@ -48,7 +48,7 @@ export async function submitSchoolReview(formData: FormData): Promise<void> {
     .single();
 
   if (reviewError || !review) {
-    redirect(`/schools/${schoolId}?error=save`);
+    redirect(`/schools/${schoolId}?view=mine&error=save`);
   }
 
   const { error: answerError } = await supabase
@@ -63,9 +63,9 @@ export async function submitSchoolReview(formData: FormData): Promise<void> {
     );
 
   if (answerError) {
-    redirect(`/schools/${schoolId}?error=save`);
+    redirect(`/schools/${schoolId}?view=mine&error=save`);
   }
 
   revalidatePath(`/schools/${schoolId}`);
-  redirect(`/schools/${schoolId}?saved=1`);
+  redirect(`/schools/${schoolId}?view=mine&saved=1`);
 }

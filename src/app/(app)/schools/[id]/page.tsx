@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireApprovedProfile } from "@/lib/auth";
 import { StarRating } from "@/components/StarRating";
 import { SubmitButton } from "@/components/SubmitButton";
+import { SchoolRatingRadar } from "@/components/SchoolRatingRadar";
 import { formatScore } from "@/lib/format";
 import { submitSchoolReview } from "../actions";
 
@@ -22,11 +23,12 @@ export default async function SchoolDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ saved?: string; error?: string }>;
+  searchParams: Promise<{ saved?: string; error?: string; view?: string }>;
 }) {
   const profile = await requireApprovedProfile();
   const { id } = await params;
-  const { saved, error } = await searchParams;
+  const { saved, error, view } = await searchParams;
+  const activeView = view === "mine" ? "mine" : "average";
   const supabase = await createClient();
 
   const { data: school } = await supabase
@@ -105,80 +107,70 @@ export default async function SchoolDetailPage({
         </p>
       ) : null}
 
-      <div className="card">
-        <div className="spread">
-          <div>
-            <span className="muted">전체 평균</span>
-            <div className="big-number">
-              {formatScore(overall?.average_score ?? null)}
+      <nav className="subtabs school-detail-tabs" aria-label="학교 평가 정보">
+        <Link href={`/schools/${school.id}`} aria-current={activeView === "average" ? "page" : undefined}>
+          학교 평균
+        </Link>
+        <Link href={`/schools/${school.id}?view=mine`} aria-current={activeView === "mine" ? "page" : undefined}>
+          내 평가
+        </Link>
+      </nav>
+
+      {activeView === "average" ? (
+        <>
+          <div className="card">
+            <div className="spread">
+              <div>
+                <span className="muted">전체 평균</span>
+                <div className="big-number">
+                  {formatScore(overall?.average_score ?? null)}
+                </div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <span className="muted">참여자</span>
+                <div className="big-number">{overall?.reviewer_count ?? 0}명</div>
+              </div>
             </div>
           </div>
-          <div style={{ textAlign: "right" }}>
-            <span className="muted">참여자</span>
-            <div className="big-number">{overall?.reviewer_count ?? 0}명</div>
-          </div>
-        </div>
-      </div>
-
-      <h2>질문별 평균</h2>
-      {perQuestion.length === 0 ? (
-        <p className="notice notice-info">
-          아직 평가가 없습니다. 첫 평가를 남겨 주세요.
-        </p>
-      ) : (
-        <ul className="list-reset">
-          {perQuestion.map((row) => (
-            <li key={row.question_id} className="card">
-              <div className="spread">
-                <div className="grow">
-                  <strong>{row.question_text ?? "삭제된 질문"}</strong>
-                  {row.question_is_active === false ? (
-                    <span className="tag tag-plain" style={{ marginLeft: 6 }}>
-                      비활성
-                    </span>
-                  ) : null}
-                  <div className="muted">{row.answer_count}명 응답</div>
-                </div>
-                <strong style={{ fontSize: "1.25rem" }}>
-                  {formatScore(row.average_score)}
-                </strong>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <h2>{myReview ? "내 평가 수정" : "이 학교 평가하기"}</h2>
-      {!isMySchool ? (
-        <p className="notice notice-info">
-          {profile.school_id
-            ? "내가 속한 학교만 평가할 수 있습니다. 다른 학교의 평균은 볼 수 있습니다."
-            : "평가하려면 먼저 내 학교를 설정해야 합니다."}{" "}
-          <Link href="/me"><u>내 정보에서 학교 설정하기</u></Link>
-        </p>
-      ) : questions && questions.length > 0 ? (
-        <form action={submitSchoolReview}>
-          <input type="hidden" name="school_id" value={school.id} />
-          {questions.map((question) => (
-            <StarRating
-              key={question.id}
-              name={`q:${question.id}`}
-              label={question.text}
-              defaultValue={myScores.get(question.id) ?? 0}
+          <h2>질문별 평균</h2>
+          {perQuestion.length === 0 ? (
+            <p className="notice notice-info">아직 평가가 없습니다. 첫 평가를 남겨 주세요.</p>
+          ) : (
+            <SchoolRatingRadar
+              overallScore={overall?.average_score ?? null}
+              metrics={perQuestion.map((row) => ({
+                id: row.question_id!, label: row.question_text ?? "삭제된 질문",
+                score: row.average_score, answerCount: row.answer_count,
+                inactive: row.question_is_active === false,
+              }))}
             />
-          ))}
-          <p className="muted">
-            한 학교에는 평가를 하나만 남길 수 있습니다. 다시 제출하면 이전 평가를
-            덮어씁니다.
-          </p>
-          <SubmitButton className="btn-primary btn-block" pendingLabel="저장 중…">
-            {myReview ? "평가 수정하기" : "평가 남기기"}
-          </SubmitButton>
-        </form>
+          )}
+        </>
       ) : (
-        <p className="notice notice-warn">
-          등록된 평가 질문이 없습니다. 운영자가 질문을 등록하면 평가할 수 있습니다.
-        </p>
+        <section>
+          <h2>{myReview ? "내 평가 수정" : "내 평가 등록"}</h2>
+          {!isMySchool ? (
+            <p className="notice notice-info">
+              {profile.school_id
+                ? "내가 속한 학교만 평가할 수 있습니다. 다른 학교의 평균은 볼 수 있습니다."
+                : "평가하려면 먼저 내 학교를 설정해야 합니다."}{" "}
+              <Link href="/me"><u>내 정보에서 학교 설정하기</u></Link>
+            </p>
+          ) : questions && questions.length > 0 ? (
+            <form action={submitSchoolReview}>
+              <input type="hidden" name="school_id" value={school.id} />
+              {questions.map((question) => (
+                <StarRating key={question.id} name={`q:${question.id}`} label={question.text} defaultValue={myScores.get(question.id) ?? 0} />
+              ))}
+              <p className="muted">한 학교에는 평가를 하나만 남길 수 있습니다. 다시 제출하면 이전 평가를 덮어씁니다.</p>
+              <SubmitButton className="btn-primary btn-block" pendingLabel="저장 중…">
+                {myReview ? "평가 수정하기" : "평가 남기기"}
+              </SubmitButton>
+            </form>
+          ) : (
+            <p className="notice notice-warn">등록된 평가 질문이 없습니다. 운영자가 질문을 등록하면 평가할 수 있습니다.</p>
+          )}
+        </section>
       )}
     </main>
   );

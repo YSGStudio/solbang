@@ -374,6 +374,18 @@ button, .btn {
   font-size: 1rem;
   line-height: 1.4;
 }
+.share-detail-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--accent-soft);
+}
+.share-detail-section-heading h2 { margin: 0; padding: 0; border: 0; }
+.btn-pdf { min-height: 36px; padding: 6px 11px; color: var(--accent); border-color: var(--accent); font-size: 0.82rem; }
+.school-detail-tabs { margin-top: 22px; }
 .share-detail-copy {
   margin: 0;
   white-space: pre-wrap;
@@ -465,6 +477,65 @@ button, .btn {
   color: var(--border);
 }
 .star-btn[data-on="true"] { color: #e2a13a; }
+
+/* ------------------------------------------------------ rating radar */
+.rating-radar-card {
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 20px;
+}
+.rating-radar-block + .rating-radar-block {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+.rating-radar-canvas { max-width: 500px; margin: 0 auto; }
+.rating-radar-canvas svg { display: block; width: 100%; height: auto; overflow: visible; }
+.radar-grid { fill: none; stroke: var(--border); stroke-width: 1; }
+.radar-grid-outer { fill: var(--surface-2); fill-opacity: 0.45; stroke: var(--text-muted); }
+.radar-axis { stroke: var(--border); stroke-width: 1; }
+.radar-score-area {
+  fill: var(--accent);
+  fill-opacity: 0.22;
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+.radar-score-dot { fill: var(--surface); stroke: var(--accent); stroke-width: 3; }
+.radar-number circle { fill: var(--accent); }
+.radar-number text { fill: #fff; font-size: 12px; font-weight: 700; }
+.rating-radar-legend { list-style: none; margin: 4px 0 0; padding: 0; }
+.rating-radar-legend li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+}
+.rating-radar-legend li:last-child { border-bottom: 0; }
+.rating-radar-legend .grow { display: flex; flex-direction: column; line-height: 1.45; }
+.rating-radar-index {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.rating-radar-score { min-width: 36px; color: var(--accent); font-size: 1.15rem; text-align: right; }
+.rating-radar-caption { margin: 12px 0 0; text-align: center; }
+
+@media (min-width: 640px) {
+  .rating-radar-card { padding: 24px; }
+  .rating-radar-block { display: grid; grid-template-columns: minmax(280px, 1.1fr) 1fr; align-items: center; gap: 24px; }
+  .rating-radar-legend { margin-top: 0; }
+}
 
 /* --------------------------------------------------------- utilities */
 .list-reset { list-style: none; padding: 0; margin: 0; }
