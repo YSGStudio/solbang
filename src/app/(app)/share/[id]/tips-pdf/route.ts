@@ -39,7 +39,7 @@ function drawPageHeader(doc: PDFKit.PDFDocument) {
   doc.rect(0, 0, doc.page.width, doc.page.height).fill("#ffffff");
   doc.rect(0, 0, doc.page.width, 82).fill("#1f7a4d");
   doc.font("NotoSansKRBold").fillColor("#ffffff").fontSize(18).text("나눔 활용 보고서", PAGE_LEFT, 27);
-  doc.font("NotoSansKR").fontSize(9).fillColor("#d9f2e5").text("교사 나눔터", PAGE_LEFT, 54);
+  doc.font("NotoSansKR").fontSize(9).fillColor("#d9f2e5").text("솔방울", PAGE_LEFT, 54);
   doc.restore();
   doc.x = PAGE_LEFT;
   doc.y = 108;
@@ -124,7 +124,9 @@ async function pdfBuffer(
   sectionTitle(doc, "운영자 활용 팁", "예약한 선생님을 위한 물품 활용 가이드");
   const tipsY = doc.y;
   const desiredTipsHeight = doc.heightOfString(post.usageTips, { width: CONTENT_WIDTH - 40, lineGap: 5 }) + 34;
-  const tipsHeight = Math.max(82, Math.min(desiredTipsHeight, 154, PAGE_BOTTOM - tipsY - 126));
+  // 상자가 남은 공간보다 커지면 아래 섹션이 페이지 밖으로 밀린다.
+  const tipsRoom = Math.max(0, PAGE_BOTTOM - tipsY - 126);
+  const tipsHeight = Math.min(Math.max(82, Math.min(desiredTipsHeight, 154)), tipsRoom || 82);
   doc.roundedRect(PAGE_LEFT, tipsY, CONTENT_WIDTH, tipsHeight, 10).fillAndStroke("#f0f8f4", "#b8dfca");
   doc.font("NotoSansKR").fillColor("#24332b").fontSize(10).text(post.usageTips, PAGE_LEFT + 20, tipsY + 16, {
     width: CONTENT_WIDTH - 40,
@@ -136,22 +138,32 @@ async function pdfBuffer(
   doc.y = tipsY + tipsHeight + 14;
 
   sectionTitle(doc, "물건 설명");
-  const descriptionHeight = Math.max(24, PAGE_BOTTOM - doc.y);
-  doc.font("NotoSansKR").fillColor("#343a40").fontSize(10).text(post.description, {
-    width: CONTENT_WIDTH,
-    height: descriptionHeight,
-    lineGap: 5,
-    paragraphGap: 6,
-    ellipsis: true,
-  });
+  // 남은 자리가 없으면 아예 그리지 않는다. 높이를 억지로 주면 그만큼 아래로
+  // 넘쳐서 pdfkit 이 페이지를 하나 더 만든다.
+  const descriptionHeight = PAGE_BOTTOM - doc.y;
+  if (descriptionHeight >= 24) {
+    doc.font("NotoSansKR").fillColor("#343a40").fontSize(10).text(post.description, {
+      width: CONTENT_WIDTH,
+      height: descriptionHeight,
+      lineGap: 5,
+      paragraphGap: 6,
+      ellipsis: true,
+    });
+  }
 
   doc.strokeColor("#dfe3e8").moveTo(PAGE_LEFT, 802).lineTo(PAGE_LEFT + CONTENT_WIDTH, 802).stroke();
+  // A4(841.89pt)에서 margin 48 이면 본문 하단은 793.89pt 다. 꼬리말은 그보다
+  // 아래인 812pt 에 찍으므로, 여백을 잠시 0 으로 두지 않으면 pdfkit 이
+  // 페이지를 새로 만들어 꼬리말만 2쪽에 실린다.
+  const bottomMargin = doc.page.margins.bottom;
+  doc.page.margins.bottom = 0;
   doc.font("NotoSansKR").fillColor("#8a939f").fontSize(8).text(
-    "교사 나눔터 · 1 / 1",
+    "솔방울 · 1 / 1",
     PAGE_LEFT,
     812,
     { width: CONTENT_WIDTH, align: "right", lineBreak: false },
   );
+  doc.page.margins.bottom = bottomMargin;
   doc.end();
   return completed;
 }
