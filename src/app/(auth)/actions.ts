@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { signupErrorMessage } from "@/lib/authError";
+import { safeNextPath } from "@/lib/nextPath";
 
 export type AuthState = { error?: string } | undefined;
 
@@ -91,7 +92,7 @@ export async function signIn(
   }
 
   revalidatePath("/", "layout");
-  redirect("/share");
+  redirect(safeNextPath(formData.get("next")));
 }
 
 export async function signOut() {
