@@ -28,13 +28,15 @@ export default async function SharePage({
     subject?: string;
     distance?: string;
     q?: string;
+    school?: string;
     view?: string;
     deleted?: string;
   }>;
 }) {
   const profile = await requireApprovedProfile();
-  const { level, category, subject, distance, q, view, deleted } =
+  const { level, category, subject, distance, q, school, view, deleted } =
     await searchParams;
+  const schoolFilter = school?.trim() ?? "";
   const activeView: ShareView = isShareView(view) ? view : "list";
   const radiusKm = parseDistanceKm(distance);
   const searchText = q?.trim().toLocaleLowerCase("ko") ?? "";
@@ -84,9 +86,13 @@ export default async function SharePage({
     const haystack = `${post.title} ${post.category} ${post.subject}`
       .toLocaleLowerCase("ko");
     if (searchText && !haystack.includes(searchText)) return false;
-    const school = post.author?.school;
-    if (!mySchool || !school || school.lat === null || school.lng === null) return false;
-    return distanceKm(mySchool, { lat: school.lat, lng: school.lng }) <= radiusKm;
+    const postSchool = post.author?.school;
+    if (!mySchool || !postSchool || postSchool.lat === null || postSchool.lng === null) {
+      return false;
+    }
+    // Set by a map marker: show just that school's items.
+    if (schoolFilter && postSchool.id !== schoolFilter) return false;
+    return distanceKm(mySchool, { lat: postSchool.lat, lng: postSchool.lng }) <= radiusKm;
   });
 
   const covers = rows.flatMap((post) => {
@@ -94,6 +100,18 @@ export default async function SharePage({
     return first ? [first.storage_path] : [];
   });
   const urls = await signedUrlsFor(supabase, "share-images", covers);
+
+  function schoolHref(schoolId: string): string {
+    const query = new URLSearchParams();
+    if (isSchoolLevel(level)) query.set("level", level);
+    if (isShareCategory(category)) query.set("category", category);
+    if (isSubject(subject)) query.set("subject", subject);
+    query.set("distance", String(radiusKm));
+    if (q?.trim()) query.set("q", q.trim());
+    query.set("school", schoolId);
+    // No `view`: the point of the click is to leave the map for the list.
+    return `/share?${query.toString()}`;
+  }
 
   const mapSchoolById = new Map<string, ShareMapSchool>();
   for (const post of rows) {
@@ -111,7 +129,7 @@ export default async function SharePage({
       lat: school.lat,
       lng: school.lng,
       imageUrl: first ? urls.get(first.storage_path) : undefined,
-      postId: post.id,
+      href: schoolHref(school.id),
       itemCount: 1,
     });
   }
@@ -133,6 +151,14 @@ export default async function SharePage({
       <CategoryFilter />
 
       <ViewTabs active={activeView} />
+
+      {schoolFilter ? (
+        <p className="notice notice-info">
+          {rows[0]?.author?.school?.name ?? "선택한 학교"}의 나눔 글만 보고
+          있습니다 ({rows.length}개).{" "}
+          <Link href={`/share?distance=${radiusKm}`}><u>전체 보기</u></Link>
+        </p>
+      ) : null}
 
       {!mySchool ? (
         <p className="notice notice-warn">

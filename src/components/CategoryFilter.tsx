@@ -25,6 +25,7 @@ export function CategoryFilter() {
   const subject = params.get("subject") ?? "";
   const distance = params.get("distance") ?? "10";
   const queryText = params.get("q") ?? "";
+  const school = params.get("school") ?? "";
 
   function update(next: {
     level?: string;
@@ -60,9 +61,14 @@ export function CategoryFilter() {
         </div>
       </div>
 
-      {/* The selects drive the URL directly, so they must survive a plain
-          GET submit of the search box too. */}
+      {/* The selects drive the URL through router.replace rather than being
+          submitted, so pressing 검색 would otherwise drop every one of them.
+          Mirror the live values as hidden fields. */}
       <input type="hidden" name="distance" value={distance} />
+      {level ? <input type="hidden" name="level" value={level} /> : null}
+      {category ? <input type="hidden" name="category" value={category} /> : null}
+      {subject ? <input type="hidden" name="subject" value={subject} /> : null}
+      {school ? <input type="hidden" name="school" value={school} /> : null}
 
       <div className="row">
         <select

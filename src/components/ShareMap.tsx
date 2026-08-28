@@ -9,7 +9,12 @@ export type ShareMapSchool = {
   lat: number;
   lng: number;
   imageUrl?: string;
-  postId: string;
+  /**
+   * The list filtered to this school. A marker stands for every item the
+   * school is sharing, so it must not link to a single post — with N items
+   * the other N-1 would be unreachable from the map.
+   */
+  href: string;
   itemCount: number;
 };
 
@@ -64,12 +69,21 @@ export function ShareMap({ center, radiusKm, schools }: {
           ? `<img src="${escapeHtml(school.imageUrl)}" alt="" />`
           : `<span class="share-map-placeholder">📦</span>`;
         const schoolName = escapeHtml(school.name);
-        const postId = encodeURIComponent(school.postId);
+        // The count is a corner badge rather than text after the name, so a
+        // long school name cannot push it out of the marker.
+        const badge =
+          school.itemCount > 1
+            ? `<span class="share-map-count">${school.itemCount}</span>`
+            : "";
+        const label =
+          school.itemCount > 1
+            ? `${schoolName}의 물건 ${school.itemCount}개 보기`
+            : `${schoolName}의 물건 보기`;
         const overlay = new kakao.maps.CustomOverlay({
           map,
           position,
           yAnchor: 1.15,
-          content: `<a class="share-map-marker" href="/share/${postId}" aria-label="${schoolName}의 물건 보기">${image}<span>${schoolName}${school.itemCount > 1 ? ` · ${school.itemCount}개` : ""}</span></a>`,
+          content: `<a class="share-map-marker" href="${escapeHtml(school.href)}" aria-label="${label}">${badge}${image}<span class="share-map-name">${schoolName}</span></a>`,
         });
         overlay.setMap(map);
       });
