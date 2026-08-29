@@ -13,8 +13,48 @@ import {
   type ShareStatus,
 } from "@/lib/categories";
 import { uploadPostImages, removeImages, UploadError } from "@/lib/storage";
+import {
+  findUnit,
+  MAX_SELECTED_STANDARDS,
+  standardsAreInUnit,
+  unitsFor,
+} from "@/lib/curriculum/secondaryInformatics";
 
 export type ActionState = { error?: string } | undefined;
+
+/**
+ * 단원과 성취기준. 목록이 파일에 있어 데이터베이스는 모양까지만 본다.
+ * 고른 코드가 그 단원 소속인지는 여기서 막는다. (마이그레이션 15)
+ */
+function readCurriculum(
+  formData: FormData,
+  level: string,
+  category: string,
+  subject: string | null,
+): { unit: string | null; standards: string[] } | { error: string } {
+  const available = unitsFor(level, category, subject);
+  if (available.length === 0) return { unit: null, standards: [] };
+
+  const unitName = String(formData.get("unit") ?? "").trim();
+  if (!unitName) return { unit: null, standards: [] };
+
+  const unit = findUnit(level, category, subject, unitName);
+  if (!unit) return { error: "단원을 올바르게 선택해 주세요." };
+
+  const standards = [
+    ...new Set(
+      formData.getAll("standards").map((value) => String(value)).filter(Boolean),
+    ),
+  ];
+  if (standards.length > MAX_SELECTED_STANDARDS) {
+    return { error: `성취기준은 최대 ${MAX_SELECTED_STANDARDS}개까지 고를 수 있습니다.` };
+  }
+  if (!standardsAreInUnit(unit, standards)) {
+    return { error: "선택한 단원에 없는 성취기준이 있습니다." };
+  }
+
+  return { unit: unit.name, standards };
+}
 
 /**
  * R9, R10, R16. Writes the post, snapshots the carbon coefficient, then the
@@ -60,6 +100,9 @@ export async function createSharePost(
   }
   if (!itemTypeId) return { error: "품목 유형을 선택해 주세요." };
 
+  const curriculum = readCurriculum(formData, schoolLevel, category, subject);
+  if ("error" in curriculum) return { error: curriculum.error };
+
   const realFiles = files.filter((f) => f.size > 0);
   // R10: at least one, at most four.
   if (realFiles.length === 0) return { error: "사진을 1장 이상 첨부해 주세요." };
@@ -103,6 +146,8 @@ export async function createSharePost(
       category,
       subject,
       grade_band: gradeBand,
+      unit: curriculum.unit,
+      standards: curriculum.standards,
       item_type_id: itemType.id,
       carbon_g: itemType.carbon_g,
     })
@@ -271,6 +316,9 @@ export async function updateSharePost(
     return { error: "물건 상태를 선택해 주세요." };
   }
 
+  const curriculum = readCurriculum(formData, schoolLevel, category, subject);
+  if ("error" in curriculum) return { error: curriculum.error };
+
   const { data: existing } = await supabase
     .from("share_posts")
     .select("id, author_id, status, images:share_post_images (storage_path)")
@@ -333,6 +381,8 @@ export async function updateSharePost(
       category,
       subject,
       grade_band: gradeBand,
+      unit: curriculum.unit,
+      standards: curriculum.standards,
     })
     .eq("id", postId)
     .eq("author_id", profile.id);

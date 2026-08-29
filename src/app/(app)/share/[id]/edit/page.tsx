@@ -21,7 +21,7 @@ export default async function EditSharePostPage({
     .from("share_posts")
     .select(
       "id, title, description, usage_tips, condition, school_level, " +
-        "category, subject, grade_band, item_type_id, status, author_id, " +
+        "category, subject, grade_band, unit, standards, item_type_id, status, author_id, " +
         "item_type:item_type_id (label), " +
         "images:share_post_images (storage_path, sort_order)",
     )
@@ -40,6 +40,8 @@ export default async function EditSharePostPage({
     category: ShareCategory;
     subject: string | null;
     grade_band: string | null;
+    unit: string | null;
+    standards: string[] | null;
     item_type_id: string | null;
     status: ShareStatus;
     author_id: string;
@@ -77,6 +79,8 @@ export default async function EditSharePostPage({
         category: post.category,
         subject: post.subject,
         gradeBand: post.grade_band,
+        unit: post.unit,
+        standards: post.standards ?? [],
         itemTypeId: post.item_type_id,
         status: post.status,
         itemTypeLabel: post.item_type?.label ?? null,

@@ -5,6 +5,7 @@ import { requireApprovedProfile } from "@/lib/auth";
 import { StatusTag } from "@/components/StatusTag";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
+import { findUnit } from "@/lib/curriculum/secondaryInformatics";
 import { TipsPdfButton } from "@/components/TipsPdfButton";
 import { signedUrlsFor } from "@/lib/storage";
 import { formatCarbon, formatDateTime } from "@/lib/format";
@@ -51,7 +52,7 @@ export default async function SharePostPage({
     .from("share_posts")
     .select(
       "id, title, description, usage_tips, condition, school_level, category, " +
-        "subject, grade_band, status, carbon_g, " +
+        "subject, grade_band, unit, standards, status, carbon_g, " +
         "created_at, author_id, reserved_by, reserved_at, completed_at, " +
         "author:author_id (nickname), reserver:reserved_by (nickname), " +
         "item_type:item_type_id (label), " +
@@ -73,6 +74,8 @@ export default async function SharePostPage({
     category: string;
     subject: string | null;
     grade_band: string | null;
+    unit: string | null;
+    standards: string[] | null;
     status: ShareStatus;
     carbon_g: number;
     created_at: string;
@@ -104,6 +107,13 @@ export default async function SharePostPage({
   const comments = [...post.comments].sort(
     (a, b) => Date.parse(a.created_at) - Date.parse(b.created_at),
   );
+
+  // 성취기준 문장은 파일에서 읽는다. 글에는 코드만 저장돼 있다.
+  const unit = findUnit(post.school_level, post.category, post.subject, post.unit);
+  const standardTexts = (post.standards ?? []).flatMap((code) => {
+    const found = unit?.standards.find((s) => s.code === code);
+    return found ? [found] : [{ code, text: "교육과정에서 찾을 수 없는 성취기준" }];
+  });
 
   const isAuthor = post.author_id === profile.id;
   const isReserver = post.reserved_by === profile.id;
@@ -174,6 +184,28 @@ export default async function SharePostPage({
         <h2>물건 설명</h2>
         <p className="share-detail-copy">{post.description}</p>
       </section>
+
+      {post.unit ? (
+        <section className="share-detail-section">
+          <h2>단원 · 성취기준</h2>
+          <p className="share-detail-copy" style={{ marginBottom: 8 }}>
+            {post.unit}
+          </p>
+          {standardTexts.length > 0 ? (
+            <ul className="standard-readout">
+              {standardTexts.map((standard) => (
+                <li key={standard.code}>
+                  <strong>[{standard.code}]</strong> {standard.text}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="muted" style={{ margin: 0 }}>
+              선택한 성취기준이 없습니다.
+            </p>
+          )}
+        </section>
+      ) : null}
 
       {post.usage_tips ? (
         <section className="share-detail-section share-detail-tip">

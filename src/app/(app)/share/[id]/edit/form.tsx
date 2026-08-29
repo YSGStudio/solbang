@@ -32,6 +32,8 @@ export function EditSharePostForm({
     category: ShareCategory;
     subject: string | null;
     gradeBand: string | null;
+    unit: string | null;
+    standards: string[];
     itemTypeId: string | null;
     status: ShareStatus;
     itemTypeLabel: string | null;
@@ -131,6 +133,8 @@ export function EditSharePostForm({
           defaultCategory={post.category}
           defaultSubject={post.subject ?? undefined}
           defaultGradeBand={post.gradeBand ?? undefined}
+          defaultUnit={post.unit ?? undefined}
+          defaultStandards={post.standards}
           defaultItemTypeId={post.itemTypeId ?? undefined}
           lockedItemTypeLabel={post.itemTypeLabel ?? "알 수 없음"}
         />

@@ -58,6 +58,10 @@ export type SharePost = Timestamps & {
   subject: string | null;
   /** 초등 + 수업교구 에서만. (마이그레이션 14) */
   grade_band: string | null;
+  /** 중등 + 수업교구 에서만. 목록은 src/lib/curriculum 에 있다. (마이그레이션 15) */
+  unit: string | null;
+  /** 고른 성취기준 코드. (마이그레이션 15) */
+  standards: string[];
   item_type_id: string | null;
   carbon_g: number;
   status: ShareStatusDb;

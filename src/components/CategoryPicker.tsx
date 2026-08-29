@@ -12,6 +12,7 @@ import {
   type ShareCategory,
 } from "@/lib/categories";
 import { formatCarbon } from "@/lib/format";
+import { MAX_SELECTED_STANDARDS, unitsFor } from "@/lib/curriculum/secondaryInformatics";
 
 export type PickerItemType = {
   id: string;
@@ -34,6 +35,8 @@ export function CategoryPicker({
   defaultCategory = "학급경영",
   defaultSubject,
   defaultGradeBand,
+  defaultUnit,
+  defaultStandards = [],
   defaultItemTypeId,
   lockedItemTypeLabel,
 }: {
@@ -42,6 +45,8 @@ export function CategoryPicker({
   defaultCategory?: ShareCategory;
   defaultSubject?: string;
   defaultGradeBand?: string;
+  defaultUnit?: string;
+  defaultStandards?: string[];
   defaultItemTypeId?: string;
   /**
    * 수정 화면용. 마이그레이션 9 가 품목 유형과 탄소 계수를 작성 시점 값으로
@@ -51,8 +56,24 @@ export function CategoryPicker({
 }) {
   const [level, setLevel] = useState<SchoolLevel>(defaultLevel);
   const [category, setCategory] = useState<ShareCategory>(defaultCategory);
+  const [subject, setSubject] = useState(defaultSubject ?? "");
+  const [unit, setUnit] = useState(defaultUnit ?? "");
+  const [standards, setStandards] = useState<string[]>(defaultStandards);
 
   const axis = detailAxisFor(level, category);
+  // 교육과정이 준비된 교과목에서만 단원·성취기준이 나타난다. 지금은 중등 정보.
+  const units = axis === "subject" ? unitsFor(level, category, subject) : [];
+  const chosenUnit = units.find((u) => u.name === unit);
+
+  function toggleStandard(code: string) {
+    setStandards((current) =>
+      current.includes(code)
+        ? current.filter((c) => c !== code)
+        : current.length >= MAX_SELECTED_STANDARDS
+          ? current
+          : [...current, code],
+    );
+  }
   const forCategory = itemTypes.filter((type) => type.category === category);
 
   return (
@@ -120,7 +141,13 @@ export function CategoryPicker({
           <select
             id="subject"
             name="subject"
-            defaultValue={defaultSubject ?? ""}
+            value={subject}
+            onChange={(event) => {
+              setSubject(event.target.value);
+              // 교과목이 바뀌면 단원과 성취기준은 더 이상 유효하지 않다.
+              setUnit("");
+              setStandards([]);
+            }}
             required
           >
             <option value="" disabled>선택해 주세요</option>
@@ -131,6 +158,63 @@ export function CategoryPicker({
             ))}
           </select>
         </div>
+      ) : null}
+
+      {units.length > 0 ? (
+        <div className="field" key={`unit-${subject}`}>
+          <label htmlFor="unit">단원 (선택)</label>
+          <select
+            id="unit"
+            name="unit"
+            value={unit}
+            onChange={(event) => {
+              setUnit(event.target.value);
+              setStandards([]);
+            }}
+          >
+            <option value="">단원을 고르면 성취기준을 고를 수 있습니다</option>
+            {units.map((u) => (
+              <option key={u.name} value={u.name}>
+                {u.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+
+      {chosenUnit ? (
+        <fieldset className="pick-group" key={`std-${chosenUnit.name}`}>
+          <legend>
+            성취기준 (여러 개 선택 가능 · 최대 {MAX_SELECTED_STANDARDS}개)
+          </legend>
+          <ul className="standard-list">
+            {chosenUnit.standards.map((standard) => {
+              const checked = standards.includes(standard.code);
+              return (
+                <li key={standard.code}>
+                  <label className="standard-item">
+                    <input
+                      type="checkbox"
+                      name="standards"
+                      value={standard.code}
+                      checked={checked}
+                      onChange={() => toggleStandard(standard.code)}
+                      disabled={
+                        !checked && standards.length >= MAX_SELECTED_STANDARDS
+                      }
+                    />
+                    <span>
+                      <strong>[{standard.code}]</strong> {standard.text}
+                    </span>
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="muted" style={{ margin: "6px 0 0" }}>
+            {standards.length}개 선택됨
+          </p>
+        </fieldset>
       ) : null}
 
       <div className="field">

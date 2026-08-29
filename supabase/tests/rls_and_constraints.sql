@@ -765,6 +765,79 @@ select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}', false);
 set role authenticated;
 
+-- ======================================= migration 15: 단원과 성취기준
+\echo ''
+\echo '--- 단원/성취기준은 중등 수업교구에서만 붙는다 (마이그레이션 15) ---'
+
+reset role;
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', false);
+set role authenticated;
+
+select tests.expect_ok($$
+  insert into public.share_posts (author_id, title, school_level, category, subject,
+                                  condition, item_type_id, unit, standards)
+  values ('00000000-0000-0000-0000-0000000000a1', '정보 교구', 'secondary', '수업교구', '정보',
+          '사용감 있음', '00000000-0000-0000-0000-0000000000d2',
+          '알고리즘과 프로그래밍', array['9정03-05','9정03-07'])
+$$, 'CURR 중등 수업교구에는 단원과 성취기준을 붙일 수 있다');
+
+select tests.expect_error($$
+  insert into public.share_posts (author_id, title, school_level, category, grade_band,
+                                  condition, item_type_id, unit)
+  values ('00000000-0000-0000-0000-0000000000a1', '초등에 단원', 'elementary', '수업교구', '3-4학년',
+          '사용감 있음', '00000000-0000-0000-0000-0000000000d1', '데이터')
+$$, 'CURR 초등 수업교구에는 단원을 붙일 수 없다');
+
+select tests.expect_error($$
+  insert into public.share_posts (author_id, title, school_level, category,
+                                  condition, item_type_id, standards)
+  values ('00000000-0000-0000-0000-0000000000a1', '교사용품에 성취기준', 'secondary', '교사용품',
+          '사용감 있음', '00000000-0000-0000-0000-0000000000d2', array['9정01-01'])
+$$, 'CURR 교사용품에는 성취기준을 붙일 수 없다');
+
+select tests.expect_error($$
+  insert into public.share_posts (author_id, title, school_level, category, subject,
+                                  condition, item_type_id, standards)
+  values ('00000000-0000-0000-0000-0000000000a1', '단원 없는 성취기준', 'secondary', '수업교구', '정보',
+          '사용감 있음', '00000000-0000-0000-0000-0000000000d2', array['9정01-01'])
+$$, 'CURR 단원 없이 성취기준만 담을 수 없다');
+
+select tests.expect_error($$
+  insert into public.share_posts (author_id, title, school_level, category, subject,
+                                  condition, item_type_id, unit, standards)
+  values ('00000000-0000-0000-0000-0000000000a1', '중복 성취기준', 'secondary', '수업교구', '정보',
+          '사용감 있음', '00000000-0000-0000-0000-0000000000d2',
+          '데이터', array['9정02-01','9정02-01'])
+$$, 'CURR 같은 성취기준을 두 번 담을 수 없다');
+
+select tests.expect_error($$
+  insert into public.share_posts (author_id, title, school_level, category, subject,
+                                  condition, item_type_id, unit, standards)
+  values ('00000000-0000-0000-0000-0000000000a1', '빈 코드', 'secondary', '수업교구', '정보',
+          '사용감 있음', '00000000-0000-0000-0000-0000000000d2',
+          '데이터', array['9정02-01','  '])
+$$, 'CURR 빈 성취기준 코드는 거부된다');
+
+select tests.expect_error($$
+  insert into public.share_posts (author_id, title, school_level, category, subject,
+                                  condition, item_type_id, unit, standards)
+  values ('00000000-0000-0000-0000-0000000000a1', '너무 많음', 'secondary', '수업교구', '정보',
+          '사용감 있음', '00000000-0000-0000-0000-0000000000d2', '데이터',
+          array['a1','a2','a3','a4','a5','a6','a7','a8','a9','b1','b2','b3','b4'])
+$$, 'CURR 성취기준은 12개를 넘을 수 없다');
+
+-- 목록 자체는 파일에 있으므로 DB 는 소속까지 보지 않는다. 의도된 한계다.
+select tests.expect_ok($$
+  insert into public.share_posts (author_id, title, school_level, category, subject,
+                                  condition, item_type_id, unit, standards)
+  values ('00000000-0000-0000-0000-0000000000a1', '다른 단원 코드', 'secondary', '수업교구', '정보',
+          '사용감 있음', '00000000-0000-0000-0000-0000000000d2',
+          '데이터', array['9정05-01'])
+$$, 'CURR 코드가 그 단원 소속인지는 DB 가 아니라 앱이 막는다');
+
+reset role;
+
 -- ============================================ migration 14: 품목유형 목록
 \echo ''
 \echo '--- 품목유형은 카테고리별 목록이다 (마이그레이션 14) ---'
