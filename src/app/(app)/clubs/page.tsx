@@ -82,17 +82,23 @@ export default async function ClubsPage({
   const label = CLUB_KIND_LABELS[kind];
 
   return (
-    <main>
-      <div className="spread">
-        <h1>{label}</h1>
+    <main className={`clubs-page clubs-page-${kind}`}>
+      <header className="clubs-list-hero">
+        <div className="clubs-list-heading">
+          <span className="clubs-list-icon" aria-hidden="true">{isFlash ? "⚡" : "👥"}</span>
+          <div>
+            <span className="clubs-list-eyebrow">{isFlash ? "QUICK MEETUP" : "TEACHER GROUP"}</span>
+            <h1>{label}</h1>
+            <p>{CLUB_KIND_BLURBS[kind]}</p>
+          </div>
+        </div>
         <Link
           href={kind === "club" ? "/clubs/new" : `/clubs/new?kind=${kind}`}
           className="btn btn-primary"
         >
-          {label} 열기
+          <span aria-hidden="true">＋</span> {label} 열기
         </Link>
-      </div>
-      <p className="muted">{CLUB_KIND_BLURBS[kind]}</p>
+      </header>
 
       {deleted ? (
         <p className="notice notice-info">글을 삭제했습니다.</p>
@@ -119,7 +125,7 @@ export default async function ClubsPage({
             : `아직 ${label} 글이 없습니다.`}
         </p>
       ) : (
-        <ul className="list-reset">
+        <ul className="list-reset club-post-list">
           {rows.map((post) => {
             const first = [...post.images].sort(
               (a, b) => a.sort_order - b.sort_order,
@@ -128,31 +134,32 @@ export default async function ClubsPage({
 
             return (
               <li key={post.id}>
-                <Link href={`/clubs/${post.id}`} className="card" style={{ display: "block" }}>
-                  <div className="row" style={{ flexWrap: "nowrap", gap: 12 }}>
+                <Link href={`/clubs/${post.id}`} className="club-list-card">
+                  <div className="club-list-card-body">
                     {cover ? (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img
                         src={cover}
                         alt=""
-                        className="thumb"
-                        style={{ width: 96, flex: "0 0 96px" }}
+                        className="club-list-cover"
                       />
-                    ) : null}
-                    <div className="grow">
+                    ) : (
+                      <span className="club-list-placeholder" aria-hidden="true">{isFlash ? "⚡" : "👥"}</span>
+                    )}
+                    <div className="grow club-list-copy">
                       {post.meet_at ? (
-                        <span className="tag tag-plain">
-                          {formatMeetAt(post.meet_at)}
+                        <span className="club-meet-badge">
+                          <span aria-hidden="true">🗓</span> {formatMeetAt(post.meet_at)}
                         </span>
-                      ) : null}
-                      <h3 style={{ marginTop: post.meet_at ? 4 : 0 }}>
-                        {post.title}
-                      </h3>
-                      <p className="muted" style={{ margin: 0 }}>
-                        {post.author?.nickname ?? "알 수 없음"} ·{" "}
-                        {formatDate(post.created_at)} · 댓글 {post.comments.length}개
-                      </p>
+                      ) : <span className="club-type-badge">함께할 선생님 모집 중</span>}
+                      <h3>{post.title}</h3>
+                      <div className="club-card-meta">
+                        <span>👤 {post.author?.nickname ?? "알 수 없음"}</span>
+                        <span>📅 {formatDate(post.created_at)}</span>
+                        <span>💬 {post.comments.length}</span>
+                      </div>
                     </div>
+                    <span className="club-list-arrow" aria-hidden="true">→</span>
                   </div>
                 </Link>
               </li>

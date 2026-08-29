@@ -73,12 +73,10 @@ export default async function ClubPostPage({
   );
 
   return (
-    <main>
-      <p className="muted">
-        <Link href={kind === "club" ? "/clubs" : `/clubs?kind=${kind}`}>
-          ← {kindLabel} 목록
-        </Link>
-      </p>
+    <main className={`club-detail-page club-kind-${kind}`}>
+      <Link href={kind === "club" ? "/clubs" : `/clubs?kind=${kind}`} className="club-detail-back">
+        ← {kindLabel} 목록으로
+      </Link>
 
       {errorCode ? (
         <p className="notice notice-error">
@@ -90,20 +88,27 @@ export default async function ClubPostPage({
         </p>
       ) : null}
 
-      <span className="tag tag-plain">{kindLabel}</span>
-      <h1 style={{ marginTop: 6 }}>{post.title}</h1>
-      <p className="muted">
-        {post.author?.nickname ?? "알 수 없음"} · {formatDateTime(post.created_at)}
-      </p>
+      <header className="club-detail-hero">
+        <div className="club-detail-kicker">
+          <span className="club-detail-kind-icon" aria-hidden="true">{kind === "flash" ? "⚡" : "👥"}</span>
+          <span>{kindLabel}</span>
+        </div>
+        <h1>{post.title}</h1>
+        <div className="club-detail-byline">
+          <span className="club-author-avatar" aria-hidden="true">{post.author?.nickname?.slice(0, 1) ?? "?"}</span>
+          <div><strong>{post.author?.nickname ?? "알 수 없음"}</strong><small>{formatDateTime(post.created_at)}</small></div>
+        </div>
+      </header>
 
       {post.meet_at ? (
-        <p className="notice notice-info">
-          🗓️ {formatMeetAt(post.meet_at)}에 만납니다.
-        </p>
+        <section className="club-detail-schedule">
+          <span aria-hidden="true">🗓️</span>
+          <div><small>모임 일정</small><strong>{formatMeetAt(post.meet_at)}</strong></div>
+        </section>
       ) : null}
 
       {images.length > 0 ? (
-        <div className="thumb-grid" style={{ margin: "16px 0" }}>
+        <div className="thumb-grid club-detail-images">
           {images.map((image, index) => {
             const url = urls.get(image.storage_path);
             return url ? (
@@ -119,12 +124,13 @@ export default async function ClubPostPage({
         </div>
       ) : null}
 
-      <div className="card">
-        <p style={{ whiteSpace: "pre-wrap", margin: 0 }}>{post.description}</p>
-      </div>
+      <section className="club-detail-content">
+        <div className="club-detail-section-title"><span aria-hidden="true">✦</span><h2>모임 소개</h2></div>
+        <p>{post.description}</p>
+      </section>
 
       {canDelete ? (
-        <div className="row">
+        <div className="row club-detail-actions">
           <form action={deleteClubPost}>
             <input type="hidden" name="post_id" value={post.id} />
             <input type="hidden" name="kind" value={kind} />
@@ -143,7 +149,10 @@ export default async function ClubPostPage({
         </div>
       ) : null}
 
-      <h2>댓글 {comments.length}개</h2>
+      <div className="club-comments-heading">
+        <div><span>CONVERSATION</span><h2>댓글 <em>{comments.length}</em></h2></div>
+        <p>참여 의사와 궁금한 점을 편하게 남겨 주세요.</p>
+      </div>
 
       {comments.length === 0 ? (
         <p className="muted">
@@ -152,22 +161,23 @@ export default async function ClubPostPage({
       ) : (
         <ul className="list-reset">
           {comments.map((comment) => (
-            <li key={comment.id} className="card">
-              <div className="spread">
-                <strong>{comment.author?.nickname ?? "알 수 없음"}</strong>
-                <span className="muted">{formatDateTime(comment.created_at)}</span>
+            <li key={comment.id} className="club-comment-card">
+              <span className="club-comment-avatar" aria-hidden="true">{comment.author?.nickname?.slice(0, 1) ?? "?"}</span>
+              <div className="grow">
+                <div className="spread">
+                  <strong>{comment.author?.nickname ?? "알 수 없음"}</strong>
+                  <span className="muted">{formatDateTime(comment.created_at)}</span>
+                </div>
+                <p>{comment.body}</p>
               </div>
-              <p style={{ whiteSpace: "pre-wrap", marginBottom: 0 }}>
-                {comment.body}
-              </p>
             </li>
           ))}
         </ul>
       )}
 
-      <form action={addClubComment} className="card">
+      <form action={addClubComment} className="club-comment-form">
         <input type="hidden" name="post_id" value={post.id} />
-        <label htmlFor="body">댓글 쓰기</label>
+        <div className="club-detail-section-title"><span aria-hidden="true">💬</span><label htmlFor="body">댓글 쓰기</label></div>
         <textarea
           id="body"
           name="body"
