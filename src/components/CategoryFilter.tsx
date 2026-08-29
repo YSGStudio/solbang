@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
+  GRADE_BANDS,
   SCHOOL_LEVELS,
   SCHOOL_LEVEL_LABELS,
   SHARE_CATEGORIES,
@@ -23,6 +24,7 @@ export function CategoryFilter() {
   const level = params.get("level") ?? "";
   const category = params.get("category") ?? "";
   const subject = params.get("subject") ?? "";
+  const gradeBand = params.get("grade") ?? "";
   const distance = params.get("distance") ?? "10";
   const queryText = params.get("q") ?? "";
   const school = params.get("school") ?? "";
@@ -31,6 +33,7 @@ export function CategoryFilter() {
     level?: string;
     category?: string;
     subject?: string;
+    grade?: string;
     distance?: string;
   }) {
     const query = new URLSearchParams(params.toString());
@@ -68,6 +71,7 @@ export function CategoryFilter() {
       {level ? <input type="hidden" name="level" value={level} /> : null}
       {category ? <input type="hidden" name="category" value={category} /> : null}
       {subject ? <input type="hidden" name="subject" value={subject} /> : null}
+      {gradeBand ? <input type="hidden" name="grade" value={gradeBand} /> : null}
       {school ? <input type="hidden" name="school" value={school} /> : null}
 
       <div className="row">
@@ -99,14 +103,29 @@ export function CategoryFilter() {
           ))}
         </select>
 
+        {/* 세부 축은 카테고리마다 달라서, 걸러낼 때는 둘 다 열어 둔다. */}
         <select
-          aria-label="과목 필터"
+          aria-label="교과목 필터"
           value={subject}
           onChange={(event) => update({ subject: event.target.value })}
           style={{ width: "auto", flex: "1 1 120px" }}
         >
-          <option value="">과목 전체</option>
+          <option value="">교과목 전체</option>
           {SUBJECTS.map((value) => (
+            <option key={value} value={value}>
+              {value}
+            </option>
+          ))}
+        </select>
+
+        <select
+          aria-label="학년군 필터"
+          value={gradeBand}
+          onChange={(event) => update({ grade: event.target.value })}
+          style={{ width: "auto", flex: "1 1 120px" }}
+        >
+          <option value="">학년군 전체</option>
+          {GRADE_BANDS.map((value) => (
             <option key={value} value={value}>
               {value}
             </option>
@@ -124,7 +143,7 @@ export function CategoryFilter() {
           ))}
         </select>
 
-        {level || category || subject || queryText ? (
+        {level || category || subject || gradeBand || queryText ? (
           <button
             type="button"
             onClick={() => router.replace(`${pathname}?distance=${distance}`)}

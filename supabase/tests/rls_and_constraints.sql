@@ -117,50 +117,67 @@ insert into public.school_review_questions (id, text, sort_order) values
 \echo ''
 \echo '--- AC4  school level / category pairing (R6, R7) ---'
 
--- item_type_id is supplied so the failure can only come from the category
+-- item_type_id is supplied so the failure can only come from the taxonomy
 -- CHECK, not from migration 9's item-type guard.
--- Migration 10: category is now the 대분류 and 과목 is a separate column.
+-- 마이그레이션 14: 학교급 x 카테고리 x (학년군 | 교과목).
 select tests.expect_error($$
-  insert into public.share_posts (author_id, title, school_level, category, subject, condition, item_type_id)
-  values ('00000000-0000-0000-0000-0000000000a1', '대분류 자리에 과목', 'elementary', '수학', '공통',
+  insert into public.share_posts (author_id, title, school_level, category, condition, item_type_id)
+  values ('00000000-0000-0000-0000-0000000000a1', '없어진 분류', 'elementary', '학급자료',
           '사용감 있음', '00000000-0000-0000-0000-0000000000d1')
-$$, 'AC4  a subject name in the 대분류 column is rejected');
+$$, 'AC4  없어진 카테고리(학급자료)는 거부된다');
+
+select tests.expect_error($$
+  insert into public.share_posts (author_id, title, school_level, category, condition, item_type_id)
+  values ('00000000-0000-0000-0000-0000000000a1', '학년군 없음', 'elementary', '수업교구',
+          '사용감 있음', '00000000-0000-0000-0000-0000000000d1')
+$$, 'AC4  초등 수업교구인데 학년군이 없으면 거부된다');
 
 select tests.expect_error($$
   insert into public.share_posts (author_id, title, school_level, category, subject, condition, item_type_id)
-  values ('00000000-0000-0000-0000-0000000000a1', '없는 과목', 'elementary', '수업교구', '한문',
+  values ('00000000-0000-0000-0000-0000000000a1', '초등에 교과목', 'elementary', '수업교구', '과학',
           '사용감 있음', '00000000-0000-0000-0000-0000000000d1')
-$$, 'AC4  an unknown 과목 is rejected');
+$$, 'AC4  초등 수업교구에 교과목을 넣으면 거부된다');
 
 select tests.expect_error($$
-  insert into public.share_posts (author_id, title, school_level, category, subject, condition, item_type_id)
-  values ('00000000-0000-0000-0000-0000000000a1', '없는 상태', 'elementary', '수업교구', '공통',
-          '아주 좋음', '00000000-0000-0000-0000-0000000000d1')
-$$, 'AC4  an unknown 물건상태 is rejected');
+  insert into public.share_posts (author_id, title, school_level, category, grade_band, condition, item_type_id)
+  values ('00000000-0000-0000-0000-0000000000a1', '중등에 학년군', 'secondary', '수업교구', '3-4학년',
+          '사용감 있음', '00000000-0000-0000-0000-0000000000d1')
+$$, 'AC4  중등 수업교구에 학년군을 넣으면 거부된다');
+
+select tests.expect_error($$
+  insert into public.share_posts (author_id, title, school_level, category, grade_band, condition, item_type_id)
+  values ('00000000-0000-0000-0000-0000000000a1', '학급경영에 학년군', 'elementary', '학급경영', '1-2학년',
+          '사용감 있음', '00000000-0000-0000-0000-0000000000d1')
+$$, 'AC4  학급경영에 세부 항목을 넣으면 거부된다');
 
 select tests.expect_ok($$
-  insert into public.share_posts (id, author_id, title, school_level, category, subject, condition, item_type_id, carbon_g)
+  insert into public.share_posts (id, author_id, title, school_level, category, grade_band, condition, item_type_id, carbon_g)
   values ('00000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000a1',
-          '예약 흐름용 글', 'elementary', '수업교구', '공통', '사용감 있음',
+          '예약 흐름용 글', 'elementary', '수업교구', '3-4학년', '사용감 있음',
           '00000000-0000-0000-0000-0000000000d1', 500)
-$$, 'AC4  elementary + 수업교구 + 공통 is accepted');
+$$, 'AC4  초등 + 수업교구 + 학년군 is accepted');
 
--- 초등도 과목을 고른다 (초·중등 동일 3단계).
 select tests.expect_ok($$
   insert into public.share_posts (author_id, title, school_level, category, subject, condition, item_type_id)
-  values ('00000000-0000-0000-0000-0000000000a1', '초등 수학 교구', 'elementary', '수업교구', '수학',
-          '미개봉/새것', '00000000-0000-0000-0000-0000000000d1')
-$$, 'AC4  elementary may also carry a 과목');
+  values ('00000000-0000-0000-0000-0000000000a1', '중등 과학 교구', 'secondary', '수업교구', '과학',
+          '미개봉/새것', '00000000-0000-0000-0000-0000000000d2')
+$$, 'AC4  중등 + 수업교구 + 교과목 is accepted');
+
+select tests.expect_ok($$
+  insert into public.share_posts (author_id, title, school_level, category, condition, item_type_id)
+  values ('00000000-0000-0000-0000-0000000000a1', '교사용 의자', 'secondary', '교사용품',
+          '사용감 있음', '00000000-0000-0000-0000-0000000000d2')
+$$, 'AC4  교사용품은 세부 항목 없이 통과한다');
 
 insert into public.share_posts (id, author_id, title, school_level, category, subject, condition, item_type_id, carbon_g)
 values ('00000000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-0000000000a1',
-        '탄소 500g 글', 'elementary', '학급자료', '공통', '사용감 있음',
+        '탄소 500g 글', 'elementary', '학급경영', null, '사용감 있음',
         '00000000-0000-0000-0000-0000000000d1', 500),
        ('00000000-0000-0000-0000-0000000000b3', '00000000-0000-0000-0000-0000000000a1',
         '중등 과학 글', 'secondary', '수업교구', '과학', '사용감 적음',
         '00000000-0000-0000-0000-0000000000d2', 120),
        ('00000000-0000-0000-0000-0000000000b4', '00000000-0000-0000-0000-0000000000a1',
-        '사진 개수 테스트', 'secondary', '수업교구', '미술', '사용감 있음',
+        '사진 개수 테스트', 'secondary', '교사용품', null, '사용감 있음',
         '00000000-0000-0000-0000-0000000000d2', 120);
 
 -- =========================================== AC11 (club) category + limits
@@ -310,24 +327,19 @@ $$, 'R4   teacher cannot approve another account');
 \echo ''
 \echo '--- AC5  list filtering by level + category (R8) ---'
 
--- Migration 10: filtering is now level + 대분류 + 과목.
+-- 마이그레이션 14: 학교급 + 카테고리 + (학년군 | 교과목)
 select tests.assert_eq(
   (select count(*) from public.share_posts
-   where school_level = 'secondary' and category = '수업교구' and subject = '과학')::int, 1,
-  'AC5  secondary + 수업교구 + 과학 matches exactly one post');
-select tests.assert_eq(
-  (select title from public.share_posts
-   where school_level = 'secondary' and category = '수업교구' and subject = '과학'), '중등 과학 글',
-  'AC5  ...and it is the right one');
-
--- The 대분류 alone is a coarser filter, and the 과목 axis is independent of it.
+   where school_level = 'secondary' and category = '수업교구' and subject = '과학')::int, 2,
+  'AC5  중등 + 수업교구 + 과학');
 select tests.assert_eq(
   (select count(*) from public.share_posts
-   where school_level = 'secondary' and category = '수업교구')::int, 3,
-  'AC5  secondary + 수업교구 alone matches every secondary post so far');
+   where school_level = 'elementary' and category = '수업교구' and grade_band = '3-4학년')::int, 1,
+  'AC5  초등 + 수업교구 + 3-4학년');
 select tests.assert_eq(
-  (select count(*) from public.share_posts where subject = '공통')::int, 2,
-  'AC5  공통 spans both school levels');
+  (select count(*) from public.share_posts
+   where category = '교사용품' and subject is null and grade_band is null)::int, 2,
+  'AC5  교사용품에는 세부 항목이 없다');
 
 -- ================================================= AC7  reservation rules
 \echo ''
@@ -752,6 +764,48 @@ update public.profiles set school_id = '00000000-0000-0000-0000-0000000000c1'
 select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}', false);
 set role authenticated;
+
+-- ============================================ migration 14: 품목유형 목록
+\echo ''
+\echo '--- 품목유형은 카테고리별 목록이다 (마이그레이션 14) ---'
+
+reset role;
+select tests.assert_eq(
+  (select count(*) from public.item_types
+   where is_active and category = '학급경영')::int, 6,
+  'ITEM 학급경영 품목 6종');
+select tests.assert_eq(
+  (select count(*) from public.item_types
+   where is_active and category = '수업교구')::int, 9,
+  'ITEM 수업교구 품목 9종');
+select tests.assert_eq(
+  (select count(*) from public.item_types
+   where is_active and category = '교사용품')::int, 6,
+  'ITEM 교사용품 품목 6종');
+-- 시드의 재질 기반 8종은 새 드롭다운에서 빠진다. 다만 '의류·체육복' 은 새
+-- 교사용품 목록에도 같은 이름으로 있어 label unique 때문에 그 행을 재사용한다.
+-- (픽스처가 직접 넣는 '교구'/'도서' 는 이 검사 대상이 아니다.)
+select tests.assert_eq(
+  (select count(*) from public.item_types
+   where is_active and label in ('책·교재','학용품·문구','교구·실험도구',
+     '보드게임·놀이도구','가구·수납','전자기기','기타'))::int, 0,
+  'ITEM 재사용하지 않는 재질 7종은 비활성화된다');
+select tests.assert_eq(
+  (select category from public.item_types where label = '의류·체육복'),
+  '교사용품', 'ITEM 의류·체육복 은 교사용품으로 재사용된다');
+
+-- 탄소 계수는 기존 8종에서 물려받은 값만 쓴다. 새로 지어낸 숫자가 없어야 한다.
+select tests.assert_eq(
+  (select count(*) from public.item_types
+   where category is not null
+     and carbon_g not in (1200, 300, 2500, 3200, 6000, 18000, 25000, 500))::int, 0,
+  'ITEM 계수는 기존 8종 값에서만 온다');
+
+-- 새 품목에 카테고리 밖 값이 들어가지 않는다.
+select tests.expect_error($$
+  insert into public.item_types (label, carbon_g, category)
+  values ('엉뚱한 분류', 100, '학급자료')
+$$, 'ITEM 없는 카테고리는 거부된다');
 
 -- ================================================ migration 12: admin delete
 \echo ''

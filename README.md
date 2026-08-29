@@ -47,6 +47,7 @@ psql "$DATABASE_URL" -f supabase/seed.sql   # 품목 유형 + 기본 평가 질�
 | `0007_user_carbon_totals.sql` | `user_carbon_totals` 뷰 |
 | `0009_carbon_integrity.sql` | `carbon_g` 스냅샷 강제 트리거(위조 차단), `user_carbon_totals` 본인 한정 |
 | `0008_storage.sql` | Storage 버킷 2개와 objects 정책 (storage 스키마가 없으면 자동 skip) |
+| `0014_taxonomy_rework.sql` | 분류 개편(학급경영·수업교구·교사용품 + 학년군/교과목), `item_types.category`, 품목 21종 |
 | `0013_comments_require_reservation.sql` | 나눔글 댓글은 예약으로 얻는 권한 (나눔중=전원 불가, 예약중·완료=예약자·글쓴이) |
 | `0012_admin_delete.sql` | 운영자의 모든 글 삭제 권한 (나눔·소모임·게시판 + Storage 객체) |
 | `0011_review_scope_and_reserved_comments.sql` | `my_school_id()`, 본인 학교만 별점 평가(R24), 예약중 댓글은 예약자·글쓴이만(R15) |
@@ -108,9 +109,15 @@ NEXT_PUBLIC_SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
 - **카테고리 매핑은 두 곳에 산다.** `src/lib/categories.ts`와
   `supabase/migrations/0010_categories_boards.sql`의
   `is_valid_share_category()`. 바꿀 때 반드시 둘 다 고친다.
-- **나눔 분류는 3단계다.** 학교급(초등/중등) × 대분류(수업교구/학급경영/학급자료)
-  × 과목(공통 + 10과목). 세 축은 서로 독립이다. `공통`은 과목이 필수인데
-  학급경영·학급자료 물건은 과목이 없는 경우가 많아서 있다.
+- **나눔 분류의 세부 축은 조합에 따라 달라진다.** 학교급(초등/중등) ×
+  카테고리(학급경영/수업교구/교사용품)이고, 세부 항목은 `수업교구`일 때만
+  붙는다. 초등이면 학년군(1-2/3-4/5-6), 중등이면 교과목이다. 학급경영과
+  교사용품에는 세부 항목이 없고 두 칼럼 모두 null 이어야 한다.
+- **CHECK 는 NULL 을 통과시킨다.** `is_valid_share_taxonomy()`가 `coalesce(…,
+  false)`로 감싸여 있는 이유다. 감싸지 않으면 학년군이 비었을 때 식 전체가
+  NULL 이 되어 필수 항목이 필수가 아니게 된다.
+- **품목유형은 카테고리별 목록이다.** `item_types.category`로 갈린다. 탄소
+  계수는 재질·무게 기반 기존 8종 값을 물려받아 쓰고, 새 숫자를 지어내지 않는다.
 - **분류는 나눔에만 있다.** 소모임·번개모임·게시판에는 분류도 검색 상자도 없다.
   소모임 분류 체계는 이후 작업이다.
 - **별점 평가는 본인 학교만.** `my_school_id()`를 쓰는 RLS 정책이 경계이고,

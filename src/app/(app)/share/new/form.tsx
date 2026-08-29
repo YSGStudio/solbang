@@ -6,12 +6,12 @@ import { CategoryPicker } from "@/components/CategoryPicker";
 import { ImageUploader } from "@/components/ImageUploader";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ITEM_CONDITIONS, MAX_SHARE_IMAGES } from "@/lib/categories";
-import { formatCarbon } from "@/lib/format";
+import type { PickerItemType } from "@/components/CategoryPicker";
 
 export function NewSharePostForm({
   itemTypes,
 }: {
-  itemTypes: { id: string; label: string; carbon_g: number }[];
+  itemTypes: PickerItemType[];
 }) {
   const [state, action] = useActionState(createSharePost, undefined);
 
@@ -60,30 +60,8 @@ export function NewSharePostForm({
           </select>
         </div>
 
-        <CategoryPicker />
+        <CategoryPicker itemTypes={itemTypes} />
 
-        <div className="field" style={{ marginTop: 14 }}>
-          <label htmlFor="item_type_id">품목 유형 *</label>
-          {itemTypes.length === 0 ? (
-            <p className="notice notice-warn">
-              등록된 품목 유형이 없습니다. 운영자에게 문의해 주세요.
-            </p>
-          ) : (
-            <>
-              <select id="item_type_id" name="item_type_id" required>
-                <option value="">선택해 주세요</option>
-                {itemTypes.map((type) => (
-                  <option key={type.id} value={type.id}>
-                    {type.label} (약 {formatCarbon(type.carbon_g)} 절감)
-                  </option>
-                ))}
-              </select>
-              <p className="muted" style={{ marginTop: 6 }}>
-                나눔이 완료되면 이 품목의 절감량이 내 누적 탄소량에 더해집니다.
-              </p>
-            </>
-          )}
-        </div>
 
         <ImageUploader max={MAX_SHARE_IMAGES} min={1} label="사진" />
 

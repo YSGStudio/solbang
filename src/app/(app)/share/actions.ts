@@ -5,9 +5,10 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireApprovedProfile } from "@/lib/auth";
 import {
+  detailAxisFor,
   isItemCondition,
   isSchoolLevel,
-  isValidShareCategory,
+  isValidShareTaxonomy,
   MAX_SHARE_IMAGES,
   type ShareStatus,
 } from "@/lib/categories";
@@ -33,15 +34,26 @@ export async function createSharePost(
   const condition = String(formData.get("condition") ?? "");
   const schoolLevel = String(formData.get("school_level") ?? "");
   const category = String(formData.get("category") ?? "");
-  const subject = String(formData.get("subject") ?? "");
+  // 세부 항목은 조합에 따라 하나만 쓰인다. 화면이 감춘 값이 남아 넘어와도
+  // 조합에 맞지 않으면 버린다.
+  const axis = detailAxisFor(schoolLevel, category);
+  const subject = axis === "subject" ? String(formData.get("subject") ?? "") : null;
+  const gradeBand = axis === "grade" ? String(formData.get("grade_band") ?? "") : null;
   const itemTypeId = String(formData.get("item_type_id") ?? "").trim();
   const files = formData.getAll("images").filter((f): f is File => f instanceof File);
 
   if (!title) return { error: "제목을 입력해 주세요." };
   if (!description) return { error: "물건 설명을 입력해 주세요." };
   if (!isSchoolLevel(schoolLevel)) return { error: "학교급을 선택해 주세요." };
-  if (!isValidShareCategory(category, subject)) {
-    return { error: "분류와 과목을 올바르게 선택해 주세요." };
+  if (!isValidShareTaxonomy(schoolLevel, category, subject, gradeBand)) {
+    return {
+      error:
+        axis === "grade"
+          ? "학년군을 선택해 주세요."
+          : axis === "subject"
+            ? "교과목을 선택해 주세요."
+            : "카테고리를 올바르게 선택해 주세요.",
+    };
   }
   if (!isItemCondition(condition)) {
     return { error: "물건 상태를 선택해 주세요." };
@@ -90,6 +102,7 @@ export async function createSharePost(
       school_level: schoolLevel,
       category,
       subject,
+      grade_band: gradeBand,
       item_type_id: itemType.id,
       carbon_g: itemType.carbon_g,
     })
@@ -231,7 +244,9 @@ export async function updateSharePost(
   const condition = String(formData.get("condition") ?? "");
   const schoolLevel = String(formData.get("school_level") ?? "");
   const category = String(formData.get("category") ?? "");
-  const subject = String(formData.get("subject") ?? "");
+  const axis = detailAxisFor(schoolLevel, category);
+  const subject = axis === "subject" ? String(formData.get("subject") ?? "") : null;
+  const gradeBand = axis === "grade" ? String(formData.get("grade_band") ?? "") : null;
   const removePaths = formData
     .getAll("remove_images")
     .map((value) => String(value))
@@ -242,8 +257,15 @@ export async function updateSharePost(
   if (!title) return { error: "제목을 입력해 주세요." };
   if (!description) return { error: "물건 설명을 입력해 주세요." };
   if (!isSchoolLevel(schoolLevel)) return { error: "학교급을 선택해 주세요." };
-  if (!isValidShareCategory(category, subject)) {
-    return { error: "분류와 과목을 올바르게 선택해 주세요." };
+  if (!isValidShareTaxonomy(schoolLevel, category, subject, gradeBand)) {
+    return {
+      error:
+        axis === "grade"
+          ? "학년군을 선택해 주세요."
+          : axis === "subject"
+            ? "교과목을 선택해 주세요."
+            : "카테고리를 올바르게 선택해 주세요.",
+    };
   }
   if (!isItemCondition(condition)) {
     return { error: "물건 상태를 선택해 주세요." };
@@ -310,6 +332,7 @@ export async function updateSharePost(
       school_level: schoolLevel,
       category,
       subject,
+      grade_band: gradeBand,
     })
     .eq("id", postId)
     .eq("author_id", profile.id);

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { requireApprovedProfile } from "@/lib/auth";
 import {
+  isGradeBand,
   isSchoolLevel,
   isShareCategory,
   isSubject,
@@ -26,6 +27,7 @@ export default async function SharePage({
     level?: string;
     category?: string;
     subject?: string;
+    grade?: string;
     distance?: string;
     q?: string;
     school?: string;
@@ -34,7 +36,7 @@ export default async function SharePage({
   }>;
 }) {
   const profile = await requireApprovedProfile();
-  const { level, category, subject, distance, q, school, view, deleted } =
+  const { level, category, subject, grade, distance, q, school, view, deleted } =
     await searchParams;
   const schoolFilter = school?.trim() ?? "";
   const activeView: ShareView = isShareView(view) ? view : "list";
@@ -49,7 +51,7 @@ export default async function SharePage({
   let query = supabase
     .from("share_posts")
     .select(
-      "id, title, school_level, category, subject, condition, status, carbon_g, created_at, " +
+      "id, title, school_level, category, subject, grade_band, condition, status, carbon_g, created_at, " +
         "author:author_id (nickname, school:school_id (id, name, lat, lng)), images:share_post_images (storage_path, sort_order)",
     )
     .order("created_at", { ascending: false })
@@ -59,6 +61,7 @@ export default async function SharePage({
   if (isSchoolLevel(level)) query = query.eq("school_level", level);
   if (isShareCategory(category)) query = query.eq("category", category);
   if (isSubject(subject)) query = query.eq("subject", subject);
+  if (isGradeBand(grade)) query = query.eq("grade_band", grade);
 
   const { data: posts, error } = await query;
 
@@ -67,7 +70,8 @@ export default async function SharePage({
     title: string;
     school_level: "elementary" | "secondary";
     category: string;
-    subject: string;
+    subject: string | null;
+    grade_band: string | null;
     condition: string;
     status: ShareStatus;
     carbon_g: number;
@@ -83,7 +87,7 @@ export default async function SharePage({
   const rows = allRows.filter((post) => {
     // The search box matches the taxonomy as well as the title, so typing
     // "과학" finds subject-tagged posts without touching the dropdowns.
-    const haystack = `${post.title} ${post.category} ${post.subject}`
+    const haystack = `${post.title} ${post.category} ${post.subject ?? ""} ${post.grade_band ?? ""}`
       .toLocaleLowerCase("ko");
     if (searchText && !haystack.includes(searchText)) return false;
     const postSchool = post.author?.school;
@@ -106,6 +110,7 @@ export default async function SharePage({
     if (isSchoolLevel(level)) query.set("level", level);
     if (isShareCategory(category)) query.set("category", category);
     if (isSubject(subject)) query.set("subject", subject);
+    if (isGradeBand(grade)) query.set("grade", grade);
     query.set("distance", String(radiusKm));
     if (q?.trim()) query.set("q", q.trim());
     query.set("school", schoolId);
@@ -216,7 +221,11 @@ export default async function SharePage({
                       <div className="row" style={{ gap: 6, marginBottom: 4 }}>
                         <StatusTag status={post.status} />
                         <span className="tag tag-plain">{post.category}</span>
-                        <span className="tag tag-plain">{post.subject}</span>
+                        {post.subject || post.grade_band ? (
+                          <span className="tag tag-plain">
+                            {post.subject ?? post.grade_band}
+                          </span>
+                        ) : null}
                       </div>
                       <h3>{post.title}</h3>
                       <p className="muted" style={{ margin: 0 }}>

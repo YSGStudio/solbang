@@ -10,13 +10,16 @@ import {
   ITEM_CONDITIONS,
   MAX_SHARE_IMAGES,
   type SchoolLevel,
+  type ShareCategory,
   type ShareStatus,
 } from "@/lib/categories";
+import type { PickerItemType } from "@/components/CategoryPicker";
 
 type ExistingImage = { path: string; url: string | undefined };
 
 export function EditSharePostForm({
   post,
+  itemTypes,
   images,
 }: {
   post: {
@@ -26,11 +29,14 @@ export function EditSharePostForm({
     usageTips: string;
     condition: string;
     schoolLevel: SchoolLevel;
-    category: string;
-    subject: string;
+    category: ShareCategory;
+    subject: string | null;
+    gradeBand: string | null;
+    itemTypeId: string | null;
     status: ShareStatus;
     itemTypeLabel: string | null;
   };
+  itemTypes: PickerItemType[];
   images: ExistingImage[];
 }) {
   const [state, action] = useActionState(updateSharePost, undefined);
@@ -120,20 +126,15 @@ export function EditSharePostForm({
         </div>
 
         <CategoryPicker
+          itemTypes={itemTypes}
           defaultLevel={post.schoolLevel}
           defaultCategory={post.category}
-          defaultSubject={post.subject}
+          defaultSubject={post.subject ?? undefined}
+          defaultGradeBand={post.gradeBand ?? undefined}
+          defaultItemTypeId={post.itemTypeId ?? undefined}
+          lockedItemTypeLabel={post.itemTypeLabel ?? "알 수 없음"}
         />
 
-        {/* R16: the carbon snapshot is frozen at write time, so the item type
-            cannot move. Shown as a fact rather than hidden entirely. */}
-        <div className="field" style={{ marginTop: 14 }}>
-          <label>품목 유형</label>
-          <p className="muted" style={{ margin: 0 }}>
-            {post.itemTypeLabel ?? "알 수 없음"} · 탄소 절감량은 작성 시점 값으로
-            고정되어 있어 품목 유형은 바꿀 수 없습니다.
-          </p>
-        </div>
 
         {images.length > 0 ? (
           <div className="field">

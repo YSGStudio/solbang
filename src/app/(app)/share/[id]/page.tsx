@@ -51,7 +51,7 @@ export default async function SharePostPage({
     .from("share_posts")
     .select(
       "id, title, description, usage_tips, condition, school_level, category, " +
-        "subject, status, carbon_g, " +
+        "subject, grade_band, status, carbon_g, " +
         "created_at, author_id, reserved_by, reserved_at, completed_at, " +
         "author:author_id (nickname), reserver:reserved_by (nickname), " +
         "item_type:item_type_id (label), " +
@@ -71,7 +71,8 @@ export default async function SharePostPage({
     condition: string;
     school_level: SchoolLevel;
     category: string;
-    subject: string;
+    subject: string | null;
+    grade_band: string | null;
     status: ShareStatus;
     carbon_g: number;
     created_at: string;
@@ -140,7 +141,9 @@ export default async function SharePostPage({
           <StatusTag status={post.status} />
           <span className="tag tag-plain">{SCHOOL_LEVEL_LABELS[post.school_level]}</span>
           <span className="tag tag-plain">{post.category}</span>
-          <span className="tag tag-plain">{post.subject}</span>
+          {post.subject || post.grade_band ? (
+          <span className="tag tag-plain">{post.subject ?? post.grade_band}</span>
+        ) : null}
         </div>
         <h1>{post.title}</h1>
         <div className="share-detail-byline">
@@ -189,7 +192,13 @@ export default async function SharePostPage({
         <dl className="share-detail-facts">
           <div><dt>물건 상태</dt><dd>{post.condition}</dd></div>
           <div><dt>품목 유형</dt><dd>{post.item_type?.label ?? "미분류"}</dd></div>
-          <div><dt>분류</dt><dd>{SCHOOL_LEVEL_LABELS[post.school_level]} · {post.category} · {post.subject}</dd></div>
+          <div>
+            <dt>분류</dt>
+            <dd>
+              {[SCHOOL_LEVEL_LABELS[post.school_level], post.category,
+                post.subject ?? post.grade_band].filter(Boolean).join(" · ")}
+            </dd>
+          </div>
           <div><dt>예상 탄소 절감</dt><dd>{formatCarbon(post.carbon_g)}</dd></div>
         </dl>
       </section>

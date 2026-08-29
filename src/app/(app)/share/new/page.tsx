@@ -11,7 +11,7 @@ export default async function NewSharePostPage() {
 
   const { data: itemTypes } = await supabase
     .from("item_types")
-    .select("id, label, carbon_g")
+    .select("id, label, carbon_g, category")
     .eq("is_active", true)
     .order("sort_order", { ascending: true })
     .order("label", { ascending: true });

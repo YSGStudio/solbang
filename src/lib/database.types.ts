@@ -39,6 +39,8 @@ export type ItemType = {
   id: string;
   label: string;
   carbon_g: number;
+  /** 어느 카테고리 드롭다운에 나오는지. (마이그레이션 14) */
+  category: string | null;
   sort_order: number;
   is_active: boolean;
 };
@@ -52,7 +54,10 @@ export type SharePost = Timestamps & {
   condition: string;
   school_level: SchoolLevelDb;
   category: string;
-  subject: string;
+  /** 중등 + 수업교구 에서만. (마이그레이션 14) */
+  subject: string | null;
+  /** 초등 + 수업교구 에서만. (마이그레이션 14) */
+  grade_band: string | null;
   item_type_id: string | null;
   carbon_g: number;
   status: ShareStatusDb;

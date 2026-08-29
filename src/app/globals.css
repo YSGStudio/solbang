@@ -242,6 +242,37 @@ input:disabled, textarea:disabled, select:disabled, button:disabled {
 
 .field { margin-bottom: 14px; }
 
+/* 라디오를 칩처럼. 손가락으로 누르기 좋은 크기를 유지한다. */
+.pick-group { border: none; padding: 0; margin: 0 0 14px; }
+.pick-group legend {
+  padding: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.pick-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.pick-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap);
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin: 0;
+}
+.pick-chip input { width: auto; min-height: 0; margin: 0; accent-color: var(--accent); }
+.pick-chip:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.pick-chip:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 /* Drag-and-drop target above the native file input. */
 .dropzone {
   display: flex;

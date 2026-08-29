@@ -15,13 +15,17 @@ export const SCHOOL_LEVEL_LABELS: Record<SchoolLevel, string> = {
   secondary: "중등",
 };
 
-/** 대분류. */
-export const SHARE_CATEGORIES = ["수업교구", "학급경영", "학급자료"] as const;
+/** 카테고리(라디오). '학급자료' 는 마이그레이션 14 에서 없어졌다. */
+export const SHARE_CATEGORIES = ["학급경영", "수업교구", "교사용품"] as const;
 export type ShareCategory = (typeof SHARE_CATEGORIES)[number];
 
+/** 초등 + 수업교구 에서만 고른다. */
+export const GRADE_BANDS = ["1-2학년", "3-4학년", "5-6학년"] as const;
+export type GradeBand = (typeof GRADE_BANDS)[number];
+
 /**
- * 과목. '공통' leads because 학급경영/학급자료 items are usually not tied to a
- * single subject, and the subject is required.
+ * 중등 + 수업교구 에서만 고른다. '공통' 은 특정 교과에 매이지 않는 교구를
+ * 위한 자리다.
  */
 export const SUBJECTS = [
   "공통",
@@ -59,16 +63,47 @@ export function isSubject(value: unknown): value is Subject {
   return SUBJECTS.includes(value as Subject);
 }
 
+export function isGradeBand(value: unknown): value is GradeBand {
+  return GRADE_BANDS.includes(value as GradeBand);
+}
+
 export function isItemCondition(value: unknown): value is ItemCondition {
   return ITEM_CONDITIONS.includes(value as ItemCondition);
 }
 
-/** R7: both halves of the pair have to be known values. */
-export function isValidShareCategory(
+/** 학교급 + 카테고리 조합에 세부 항목이 붙는지. */
+export type DetailAxis = "grade" | "subject" | "none";
+
+export function detailAxisFor(
+  level: unknown,
+  category: unknown,
+): DetailAxis {
+  if (category !== "수업교구") return "none";
+  if (level === "elementary") return "grade";
+  if (level === "secondary") return "subject";
+  return "none";
+}
+
+/**
+ * R7. 마이그레이션 14 의 is_valid_share_taxonomy() 와 같은 규칙이다.
+ * 둘을 함께 고쳐야 한다.
+ */
+export function isValidShareTaxonomy(
+  level: unknown,
   category: unknown,
   subject: unknown,
+  gradeBand: unknown,
 ): boolean {
-  return isShareCategory(category) && isSubject(subject);
+  if (!isSchoolLevel(level) || !isShareCategory(category)) return false;
+
+  switch (detailAxisFor(level, category)) {
+    case "grade":
+      return isGradeBand(gradeBand) && !subject;
+    case "subject":
+      return isSubject(subject) && !gradeBand;
+    default:
+      return !subject && !gradeBand;
+  }
 }
 
 export const SHARE_STATUSES = ["available", "reserved", "completed"] as const;
