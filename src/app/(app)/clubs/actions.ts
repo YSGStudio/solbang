@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireApprovedProfile } from "@/lib/auth";
 import { isClubKind, MAX_CLUB_IMAGES, type ClubKind } from "@/lib/categories";
+import { combineKst } from "@/lib/meetTime";
 import { uploadPostImages, removeImages, UploadError } from "@/lib/storage";
 
 export type ActionState = { error?: string } | undefined;
@@ -27,6 +28,14 @@ export async function createClubPost(
   const description = String(formData.get("description") ?? "").trim();
   const rawKind = String(formData.get("kind") ?? "club");
   const kind: ClubKind = isClubKind(rawKind) ? rawKind : "club";
+  // 번개모임만 일시를 갖는다. 소모임에서 넘어온 값은 버린다. (마이그레이션 17)
+  const meetAt =
+    kind === "flash"
+      ? combineKst(
+          String(formData.get("meet_date") ?? ""),
+          String(formData.get("meet_time") ?? ""),
+        )
+      : null;
   const files = formData
     .getAll("images")
     .filter((f): f is File => f instanceof File)
@@ -34,6 +43,9 @@ export async function createClubPost(
 
   if (!title) return { error: "제목을 입력해 주세요." };
   if (!description) return { error: "모임 설명을 입력해 주세요." };
+  if (kind === "flash" && !meetAt) {
+    return { error: "만나는 날짜와 시간을 입력해 주세요." };
+  }
   if (files.length > MAX_CLUB_IMAGES) {
     return { error: `사진은 최대 ${MAX_CLUB_IMAGES}장까지 첨부할 수 있습니다.` };
   }
@@ -59,6 +71,7 @@ export async function createClubPost(
       title,
       description,
       kind,
+      meet_at: meetAt,
     })
     .select("id")
     .single();

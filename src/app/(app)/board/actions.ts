@@ -4,7 +4,11 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireApprovedProfile } from "@/lib/auth";
-import { MAX_BOARD_IMAGES } from "@/lib/categories";
+import {
+  isBoardCareerStage,
+  isBoardTopic,
+  MAX_BOARD_IMAGES,
+} from "@/lib/categories";
 import { uploadPostImages, removeImages, UploadError } from "@/lib/storage";
 
 export type ActionState = { error?: string } | undefined;
@@ -20,6 +24,8 @@ export async function createBoardPost(
   const profile = await requireApprovedProfile();
   const supabase = await createClient();
 
+  const careerStage = String(formData.get("career_stage") ?? "");
+  const topic = String(formData.get("topic") ?? "");
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const files = formData
@@ -27,6 +33,11 @@ export async function createBoardPost(
     .filter((f): f is File => f instanceof File)
     .filter((f) => f.size > 0);
 
+  // 카테고리를 먼저 고르게 되어 있으므로 먼저 본다.
+  if (!isBoardCareerStage(careerStage)) {
+    return { error: "경력 단계를 선택해 주세요." };
+  }
+  if (!isBoardTopic(topic)) return { error: "주제를 선택해 주세요." };
   if (!title) return { error: "제목을 입력해 주세요." };
   if (!description) return { error: "내용을 입력해 주세요." };
   if (files.length > MAX_BOARD_IMAGES) {
@@ -49,7 +60,13 @@ export async function createBoardPost(
 
   const { data: post, error: postError } = await supabase
     .from("board_posts")
-    .insert({ author_id: profile.id, title, description })
+    .insert({
+      author_id: profile.id,
+      career_stage: careerStage,
+      topic,
+      title,
+      description,
+    })
     .select("id")
     .single();
 

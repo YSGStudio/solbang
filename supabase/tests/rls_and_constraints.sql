@@ -765,6 +765,101 @@ select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-0000000000a3","role":"authenticated"}', false);
 set role authenticated;
 
+-- ===================================== migration 17: 번개모임 날짜와 시간
+\echo ''
+\echo '--- 번개모임은 일시가 필수, 소모임은 일시가 없다 (마이그레이션 17) ---'
+
+reset role;
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', false);
+set role authenticated;
+
+select tests.expect_ok($$
+  insert into public.club_posts (id, author_id, title, description, kind, meet_at)
+  values ('00000000-0000-0000-0000-0000000000f2', '00000000-0000-0000-0000-0000000000a1',
+          '금요일 번개', '내용', 'flash', timestamptz '2026-09-04 19:00+09')
+$$, 'FLASH 일시가 있는 번개모임은 통과한다');
+
+select tests.expect_error($$
+  insert into public.club_posts (author_id, title, description, kind)
+  values ('00000000-0000-0000-0000-0000000000a1', '일시 없는 번개', '내용', 'flash')
+$$, 'FLASH 일시 없는 번개모임은 거부된다');
+
+select tests.expect_error($$
+  insert into public.club_posts (author_id, title, description, kind, meet_at)
+  values ('00000000-0000-0000-0000-0000000000a1', '일시 붙은 소모임', '내용', 'club',
+          timestamptz '2026-09-04 19:00+09')
+$$, 'FLASH 소모임에는 일시를 붙일 수 없다');
+
+select tests.expect_ok($$
+  insert into public.club_posts (author_id, title, description, kind)
+  values ('00000000-0000-0000-0000-0000000000a1', '보통 소모임', '내용', 'club')
+$$, 'FLASH 소모임은 일시 없이 통과한다');
+
+-- 달력은 한 달 범위로 훑는다.
+select tests.assert_eq(
+  (select count(*) from public.club_posts
+   where kind = 'flash'
+     and meet_at >= timestamptz '2026-09-01 00:00+09'
+     and meet_at <  timestamptz '2026-10-01 00:00+09')::int, 1,
+  'FLASH 9월 범위로 번개모임을 훑을 수 있다');
+
+reset role;
+
+-- ========================================= migration 16: 게시판 카테고리
+\echo ''
+\echo '--- 게시판 글은 경력 단계와 주제를 반드시 갖는다 (마이그레이션 16) ---'
+
+reset role;
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000a1","role":"authenticated"}', false);
+set role authenticated;
+
+select tests.expect_ok($$
+  insert into public.board_posts (author_id, title, description, career_stage, topic)
+  values ('00000000-0000-0000-0000-0000000000a1', '첫 발령 고민', '내용',
+          '신규적응', '인간관계')
+$$, 'BOARD 경력 단계와 주제를 갖춘 글은 통과한다');
+
+select tests.expect_error($$
+  insert into public.board_posts (author_id, title, description, topic)
+  values ('00000000-0000-0000-0000-0000000000a1', '경력 단계 없음', '내용', '수업')
+$$, 'BOARD 경력 단계가 없으면 거부된다');
+
+select tests.expect_error($$
+  insert into public.board_posts (author_id, title, description, career_stage)
+  values ('00000000-0000-0000-0000-0000000000a1', '주제 없음', '내용', '중견')
+$$, 'BOARD 주제가 없으면 거부된다');
+
+select tests.expect_error($$
+  insert into public.board_posts (author_id, title, description, career_stage, topic)
+  values ('00000000-0000-0000-0000-0000000000a1', '없는 경력 단계', '내용',
+          '경력무관', '수업')
+$$, 'BOARD 목록에 없는 경력 단계는 거부된다');
+
+select tests.expect_error($$
+  insert into public.board_posts (author_id, title, description, career_stage, topic)
+  values ('00000000-0000-0000-0000-0000000000a1', '없는 주제', '내용', '자유', '취미')
+$$, 'BOARD 목록에 없는 주제는 거부된다');
+
+-- 색인: 두 축으로 걸러진다.
+reset role;
+insert into public.board_posts (author_id, title, description, career_stage, topic)
+values ('00000000-0000-0000-0000-0000000000a1', '중견 수업', '내용', '중견', '수업'),
+       ('00000000-0000-0000-0000-0000000000a1', '중견 업무', '내용', '중견', '업무'),
+       ('00000000-0000-0000-0000-0000000000a1', '자유 잡담', '내용', '자유', '잡담');
+
+select tests.assert_eq(
+  (select count(*) from public.board_posts where career_stage = '중견')::int, 2,
+  'BOARD 경력 단계로 거를 수 있다');
+select tests.assert_eq(
+  (select count(*) from public.board_posts
+   where career_stage = '중견' and topic = '수업')::int, 1,
+  'BOARD 두 축을 함께 걸 수 있다');
+select tests.assert_eq(
+  (select count(distinct career_stage) from public.board_posts)::int, 3,
+  'BOARD 색인에 쓸 경력 단계가 여러 개 존재한다');
+
 -- ======================================= migration 15: 단원과 성취기준
 \echo ''
 \echo '--- 단원/성취기준은 중등 수업교구에서만 붙는다 (마이그레이션 15) ---'

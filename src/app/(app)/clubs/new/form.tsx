@@ -33,6 +33,19 @@ export function NewClubPostForm({ kind }: { kind: ClubKind }) {
           <p className="notice notice-error">{state.error}</p>
         ) : null}
 
+        {kind === "flash" ? (
+          <div className="row" style={{ gap: 12, alignItems: "flex-start" }}>
+            <div className="field grow">
+              <label htmlFor="meet_date">만나는 날짜 *</label>
+              <input id="meet_date" name="meet_date" type="date" required />
+            </div>
+            <div className="field grow">
+              <label htmlFor="meet_time">만나는 시간 *</label>
+              <input id="meet_time" name="meet_time" type="time" required />
+            </div>
+          </div>
+        ) : null}
+
         <div className="field">
           <label htmlFor="title">제목 *</label>
           <input id="title" name="title" type="text" maxLength={120} required />

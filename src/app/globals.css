@@ -380,6 +380,70 @@ button, .btn {
   border-bottom-color: var(--accent);
 }
 
+/* 번개모임 달력. 한 달 6주 격자에 모임을 얹는다. */
+.calendar {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 12px;
+  margin-bottom: 20px;
+}
+.calendar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.calendar-head strong { font-size: 1.05rem; }
+.calendar-head .btn { min-height: 36px; padding: 4px 14px; }
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.calendar-weekday {
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 4px 0;
+}
+.calendar-weekday:first-child { color: var(--danger); }
+.calendar-weekday:nth-child(7) { color: var(--accent); }
+.calendar-day {
+  min-height: 76px;
+  padding: 4px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+.calendar-day-out { opacity: 0.4; }
+.calendar-day-today { outline: 2px solid var(--accent); outline-offset: -2px; }
+.calendar-date { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); }
+.calendar-chip {
+  display: block;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.calendar-chip:hover { filter: brightness(1.08); }
+
+@media (max-width: 520px) {
+  .calendar-day { min-height: 58px; }
+  .calendar-chip { font-size: 0.6rem; }
+}
+
 .notice {
   border-radius: 8px;
   padding: 12px 14px;

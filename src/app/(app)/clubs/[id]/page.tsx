@@ -7,6 +7,7 @@ import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { signedUrlsFor } from "@/lib/storage";
 import { formatDateTime } from "@/lib/format";
 import { CLUB_KIND_LABELS, isClubKind } from "@/lib/categories";
+import { formatMeetAt } from "@/lib/meetTime";
 import { addClubComment, deleteClubPost } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +28,7 @@ export default async function ClubPostPage({
   const { data } = await supabase
     .from("club_posts")
     .select(
-      "id, title, description, kind, created_at, author_id, " +
+      "id, title, description, kind, meet_at, created_at, author_id, " +
         "author:author_id (nickname), " +
         "images:club_post_images (storage_path, sort_order), " +
         "comments:club_comments (id, body, created_at, author:author_id (nickname))",
@@ -42,6 +43,7 @@ export default async function ClubPostPage({
     title: string;
     description: string;
     kind: string;
+    meet_at: string | null;
     created_at: string;
     author_id: string;
     author: { nickname: string } | null;
@@ -93,6 +95,12 @@ export default async function ClubPostPage({
       <p className="muted">
         {post.author?.nickname ?? "알 수 없음"} · {formatDateTime(post.created_at)}
       </p>
+
+      {post.meet_at ? (
+        <p className="notice notice-info">
+          🗓️ {formatMeetAt(post.meet_at)}에 만납니다.
+        </p>
+      ) : null}
 
       {images.length > 0 ? (
         <div className="thumb-grid" style={{ margin: "16px 0" }}>

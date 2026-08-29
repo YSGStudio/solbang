@@ -93,6 +93,8 @@ export type ClubPost = Timestamps & {
   description: string;
   /** Migration 10: 소모임 and 번개모임 share this table. */
   kind: ClubKindDb;
+  /** 번개모임만 갖는 만나는 일시. 소모임은 null. (마이그레이션 17) */
+  meet_at: string | null;
   // The club taxonomy is a later piece of work, so neither field is required.
   school_level: SchoolLevelDb | null;
   category: string;
@@ -104,6 +106,10 @@ export type BoardPost = Timestamps & {
   author_id: string;
   title: string;
   description: string;
+  /** 경력 단계. 필수. (마이그레이션 16) */
+  career_stage: string;
+  /** 주제. 필수. (마이그레이션 16) */
+  topic: string;
   updated_at: string;
 };
 

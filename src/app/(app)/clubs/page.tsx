@@ -10,6 +10,13 @@ import {
 import { KindTabs } from "@/components/KindTabs";
 import { signedUrlsFor } from "@/lib/storage";
 import { formatDate } from "@/lib/format";
+import { FlashCalendar } from "@/components/FlashCalendar";
+import {
+  dayKey,
+  formatMeetAt,
+  monthKey,
+  monthRange,
+} from "@/lib/meetTime";
 
 export const dynamic = "force-dynamic";
 
@@ -20,27 +27,45 @@ export const dynamic = "force-dynamic";
 export default async function ClubsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ kind?: string; deleted?: string }>;
+  searchParams: Promise<{ kind?: string; month?: string; deleted?: string }>;
 }) {
   await requireApprovedProfile();
-  const { kind: rawKind, deleted } = await searchParams;
+  const { kind: rawKind, month: rawMonth, deleted } = await searchParams;
   const kind: ClubKind = isClubKind(rawKind) ? rawKind : "club";
   const supabase = await createClient();
 
-  const { data } = await supabase
+  // 번개모임은 달력이 보고 있는 달만, 만나는 시각 순서로 본다.
+  // 소모임은 예전처럼 최신순 전체.
+  const isFlash = kind === "flash";
+  const now = new Date();
+  const month = rawMonth && monthRange(rawMonth) ? rawMonth : monthKey(now);
+  const range = monthRange(month);
+
+  let query = supabase
     .from("club_posts")
     .select(
-      "id, title, created_at, author:author_id (nickname), " +
+      "id, title, meet_at, created_at, author:author_id (nickname), " +
         "images:club_post_images (storage_path, sort_order), " +
         "comments:club_comments (id)",
     )
     .eq("kind", kind)
-    .order("created_at", { ascending: false })
     .limit(50);
+
+  if (isFlash && range) {
+    query = query
+      .gte("meet_at", range.start)
+      .lt("meet_at", range.end)
+      .order("meet_at", { ascending: true });
+  } else {
+    query = query.order("created_at", { ascending: false });
+  }
+
+  const { data } = await query;
 
   type Row = {
     id: string;
     title: string;
+    meet_at: string | null;
     created_at: string;
     author: { nickname: string } | null;
     images: { storage_path: string; sort_order: number }[];
@@ -75,8 +100,24 @@ export default async function ClubsPage({
 
       <KindTabs active={kind} />
 
+      {isFlash ? (
+        <FlashCalendar
+          month={month}
+          today={dayKey(now)}
+          meetings={rows.flatMap((post) =>
+            post.meet_at
+              ? [{ id: post.id, title: post.title, meet_at: post.meet_at }]
+              : [],
+          )}
+        />
+      ) : null}
+
       {rows.length === 0 ? (
-        <p className="notice notice-info">아직 {label} 글이 없습니다.</p>
+        <p className="notice notice-info">
+          {isFlash
+            ? "이 달에 잡힌 번개모임이 없습니다."
+            : `아직 ${label} 글이 없습니다.`}
+        </p>
       ) : (
         <ul className="list-reset">
           {rows.map((post) => {
@@ -99,7 +140,14 @@ export default async function ClubsPage({
                       />
                     ) : null}
                     <div className="grow">
-                      <h3>{post.title}</h3>
+                      {post.meet_at ? (
+                        <span className="tag tag-plain">
+                          {formatMeetAt(post.meet_at)}
+                        </span>
+                      ) : null}
+                      <h3 style={{ marginTop: post.meet_at ? 4 : 0 }}>
+                        {post.title}
+                      </h3>
                       <p className="muted" style={{ margin: 0 }}>
                         {post.author?.nickname ?? "알 수 없음"} ·{" "}
                         {formatDate(post.created_at)} · 댓글 {post.comments.length}개

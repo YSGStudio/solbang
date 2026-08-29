@@ -47,6 +47,8 @@ psql "$DATABASE_URL" -f supabase/seed.sql   # 품목 유형 + 기본 평가 질�
 | `0007_user_carbon_totals.sql` | `user_carbon_totals` 뷰 |
 | `0009_carbon_integrity.sql` | `carbon_g` 스냅샷 강제 트리거(위조 차단), `user_carbon_totals` 본인 한정 |
 | `0008_storage.sql` | Storage 버킷 2개와 objects 정책 (storage 스키마가 없으면 자동 skip) |
+| `0017_flash_meeting_time.sql` | `club_posts.meet_at`(번개모임 필수, 소모임 금지) + 달력용 인덱스 |
+| `0016_board_categories.sql` | `board_posts.career_stage`/`topic` (둘 다 필수) |
 | `0015_curriculum_standards.sql` | `share_posts.unit`/`standards`(중등 수업교구 전용), 과목에 '정보' 추가 |
 | `0014_taxonomy_rework.sql` | 분류 개편(학급경영·수업교구·교사용품 + 학년군/교과목), `item_types.category`, 품목 21종 |
 | `0013_comments_require_reservation.sql` | 나눔글 댓글은 예약으로 얻는 권한 (나눔중=전원 불가, 예약중·완료=예약자·글쓴이) |
@@ -136,5 +138,11 @@ NEXT_PUBLIC_SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
   않고 읽기는 늘 열려 있다. (R15, 마이그레이션 13)
 - **운영자는 지울 수만 있고 고칠 수는 없다.** 마이그레이션 12는 DELETE 정책만
   넓혔다. 남의 글 수정은 여전히 `guard_share_post_transition()`이 막는다.
+- **게시판 글은 경력 단계 × 주제를 반드시 갖는다.** 글을 쓸 때 제목보다 먼저
+  고르고, 읽는 쪽은 같은 두 축으로 목록을 거른다. (마이그레이션 16)
+- **번개모임만 일시를 갖는다.** 소모임은 `meet_at` 이 null 이어야 한다. 입력한
+  날짜·시간은 서버 시간대와 무관하게 항상 KST 로 읽는다(`src/lib/meetTime.ts`).
+  목록 위 달력은 URL 의 `month=YYYY-MM` 이 가리키는 달만 보여준다.
+  (마이그레이션 17)
 - **소모임과 번개모임은 한 테이블이다.** `club_posts.kind`로 갈리고, 하단 탭이
   아니라 `/clubs` 안의 서브탭이다.

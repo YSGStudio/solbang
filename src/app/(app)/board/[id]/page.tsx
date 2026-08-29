@@ -31,7 +31,7 @@ export default async function BoardPostPage({
   const { data } = await supabase
     .from("board_posts")
     .select(
-      "id, title, description, created_at, author_id, " +
+      "id, title, description, career_stage, topic, created_at, author_id, " +
         "author:author_id (nickname), " +
         "images:board_post_images (storage_path, sort_order), " +
         "comments:board_comments (id, body, created_at, author:author_id (nickname))",
@@ -45,6 +45,8 @@ export default async function BoardPostPage({
     id: string;
     title: string;
     description: string;
+    career_stage: string;
+    topic: string;
     created_at: string;
     author_id: string;
     author: { nickname: string } | null;
@@ -80,6 +82,11 @@ export default async function BoardPostPage({
       {errorCode && ERROR_MESSAGES[errorCode] ? (
         <p className="notice notice-error">{ERROR_MESSAGES[errorCode]}</p>
       ) : null}
+
+      <div className="row" style={{ gap: 6, marginBottom: 6 }}>
+        <span className="tag tag-plain">{post.career_stage}</span>
+        <span className="tag tag-plain">{post.topic}</span>
+      </div>
 
       <h1>{post.title}</h1>
       <p className="muted">

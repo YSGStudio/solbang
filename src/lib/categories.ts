@@ -107,6 +107,36 @@ export function isValidShareTaxonomy(
   }
 }
 
+/**
+ * 게시판 카테고리 두 축. 서로 독립이고 글을 쓸 때 둘 다 고른다.
+ * 마이그레이션 16 의 CHECK 와 같이 고쳐야 한다.
+ */
+export const BOARD_CAREER_STAGES = [
+  "신규적응",
+  "저경력",
+  "중견",
+  "은퇴준비",
+  "자유",
+] as const;
+export type BoardCareerStage = (typeof BOARD_CAREER_STAGES)[number];
+
+export const BOARD_TOPICS = [
+  "수업",
+  "업무",
+  "인간관계",
+  "진로",
+  "잡담",
+] as const;
+export type BoardTopic = (typeof BOARD_TOPICS)[number];
+
+export function isBoardCareerStage(value: unknown): value is BoardCareerStage {
+  return BOARD_CAREER_STAGES.includes(value as BoardCareerStage);
+}
+
+export function isBoardTopic(value: unknown): value is BoardTopic {
+  return BOARD_TOPICS.includes(value as BoardTopic);
+}
+
 export const SHARE_STATUSES = ["available", "reserved", "completed"] as const;
 export type ShareStatus = (typeof SHARE_STATUSES)[number];
 
