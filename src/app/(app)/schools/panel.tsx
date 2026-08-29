@@ -64,14 +64,22 @@ export function SchoolSearchPanel() {
   }, [query]);
 
   return (
-    <section>
+    <section className="school-home-section school-search-section">
+      <div className="school-home-section-heading">
+        <div>
+          <span className="school-eyebrow">FIND A SCHOOL</span>
+          <h2>학교 검색</h2>
+        </div>
+        <span className="school-search-symbol" aria-hidden="true">⌕</span>
+      </div>
+      <p className="school-search-guide">학교 이름을 입력하면 평가 정보를 바로 확인할 수 있어요.</p>
       <div className="field">
-        <label htmlFor="school-query">학교 검색</label>
+        <label htmlFor="school-query" className="sr-only">학교 이름 검색</label>
         <input
           id="school-query"
           type="search"
           autoComplete="off"
-          placeholder="학교 이름을 두 글자 이상 입력하세요"
+          placeholder="학교 이름을 두 글자 이상 입력해 주세요"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
@@ -87,11 +95,13 @@ export function SchoolSearchPanel() {
       <ul className="list-reset">
         {results.map((school) => (
           <li key={school.id}>
-            <Link href={`/schools/${school.id}`} className="card" style={{ display: "block" }}>
-              <h3>{school.name}</h3>
-              <p className="muted" style={{ margin: 0 }}>
-                {school.address ?? "주소 정보 없음"}
-              </p>
+            <Link href={`/schools/${school.id}`} className="school-result-card">
+              <span className="school-result-icon" aria-hidden="true">🏫</span>
+              <span className="grow">
+                <strong>{school.name}</strong>
+                <small>{school.address ?? "주소 정보 없음"}</small>
+              </span>
+              <span className="school-card-arrow" aria-hidden="true">→</span>
             </Link>
           </li>
         ))}

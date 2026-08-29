@@ -465,7 +465,211 @@ button, .btn {
   .pdf-curtain-track span { width: 100%; }
 }
 
-.school-detail-tabs { margin-top: 22px; }
+.school-detail-page {
+  --school-ink: #17352a;
+  --school-muted: #657a71;
+  --school-line: #dcebe4;
+  color: var(--school-ink);
+  margin: 0 -6px;
+  padding: 6px;
+}
+.school-detail-page .muted { color: var(--school-muted); }
+.school-detail-hero {
+  padding: 20px;
+  border: 1px solid #d8eee3;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #f0fbf5 0%, #fbfefc 62%, #fff9e9 100%);
+  box-shadow: 0 8px 28px rgb(31 122 77 / 8%);
+}
+.school-detail-back {
+  display: inline-flex;
+  margin-bottom: 16px;
+  color: #3c715b;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+.school-detail-heading { display: flex; align-items: center; gap: 14px; }
+.school-detail-heading h1 { margin: 0; color: var(--school-ink); font-size: clamp(1.4rem, 5vw, 1.8rem); }
+.school-detail-heading p { margin: 5px 0 0; color: var(--school-muted); font-size: 0.9rem; }
+.school-detail-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 54px;
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 5px 16px rgb(31 122 77 / 12%);
+  font-size: 1.75rem;
+}
+.school-mine-badge {
+  padding: 3px 9px;
+  border: 1px solid #a8d9c0;
+  border-radius: 999px;
+  background: #e4f6ec;
+  color: #1f7a4d;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.school-detail-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+  padding: 6px;
+  border: 1px solid #deebe5;
+  border-radius: 16px;
+  background: #f2f7f4;
+}
+.school-detail-tabs a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 66px;
+  padding: 9px 12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: #6d7d76;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, color 0.15s;
+}
+.school-detail-tabs a:hover { color: #285d46; background: rgb(255 255 255 / 70%); }
+.school-detail-tabs a[aria-current="page"] {
+  color: #196841;
+  border-color: #b9dec9;
+  background: #fff;
+  box-shadow: 0 5px 16px rgb(31 122 77 / 11%);
+}
+.school-detail-tabs a > span:last-child { display: flex; flex-direction: column; line-height: 1.35; }
+.school-detail-tabs strong { font-size: 0.95rem; }
+.school-detail-tabs small { margin-top: 2px; color: #7b8d85; font-size: 0.72rem; font-weight: 500; }
+.school-tab-icon { font-size: 1.35rem; }
+.school-tab-panel {
+  padding: 20px;
+  border: 1px solid #e0ece6;
+  border-radius: 18px;
+  background: #fcfefd;
+  box-shadow: 0 8px 28px rgb(42 87 66 / 7%);
+}
+.school-section-heading { margin-bottom: 18px; }
+.school-section-heading h2 { margin: 2px 0 0; color: var(--school-ink); font-size: 1.2rem; }
+.school-section-heading > p { margin: 5px 0 0; color: var(--school-muted); font-size: 0.86rem; }
+.school-eyebrow { color: #2c8a5d; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.12em; }
+.school-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.school-summary-card { min-width: 0; padding: 17px; border-radius: 15px; }
+.school-summary-score { background: linear-gradient(145deg, #dcf5e8, #edf9f3); }
+.school-summary-people { background: linear-gradient(145deg, #fff3cf, #fff9e9); }
+.school-summary-card > span { color: #597168; font-size: 0.78rem; font-weight: 700; }
+.school-summary-card div { display: flex; align-items: baseline; gap: 4px; margin: 5px 0 2px; }
+.school-summary-card strong { color: #175f3d; font-size: clamp(1.65rem, 7vw, 2.25rem); line-height: 1.1; }
+.school-summary-people strong { color: #9a6a08; }
+.school-summary-card small { color: #6e7d76; font-size: 0.8rem; font-weight: 600; }
+.school-summary-card p { margin: 4px 0 0; color: #6e7d76; font-size: 0.72rem; line-height: 1.45; }
+.school-subsection-heading { margin: 25px 0 12px; }
+.school-subsection-heading h2 { margin: 0; color: var(--school-ink); font-size: 1.05rem; }
+.school-subsection-heading p { margin: 3px 0 0; color: var(--school-muted); font-size: 0.8rem; }
+.school-detail-page .rating-radar-card { border-color: #dfece5; border-radius: 15px; background: #fff; box-shadow: none; }
+.school-detail-page .radar-grid, .school-detail-page .radar-axis { stroke: #dce9e2; }
+.school-detail-page .radar-grid-outer { fill: #f1f8f4; stroke: #a9c6b8; }
+.school-detail-page .radar-score-dot { fill: #fff; }
+.school-detail-page .notice-info { color: #3d6d58; border-color: #cce5d8; background: #f0f8f4; }
+.school-detail-page .notice-warn { color: #8b6010; border-color: #efd897; background: #fff8df; }
+.school-detail-page .notice-error { color: #a33d3d; border-color: #efc7c7; background: #fff1f1; }
+.school-review-form fieldset.card { border-color: #dbeae2 !important; border-radius: 14px; background: #fff; }
+.school-review-form fieldset.card:hover { border-color: #acd5bf !important; }
+.school-directory-hero { margin-bottom: 16px; }
+.school-directory-hero .school-detail-heading { align-items: center; }
+.school-home-section {
+  margin-bottom: 16px;
+  padding: 20px;
+  border: 1px solid #e0ece6;
+  border-radius: 18px;
+  background: #fcfefd;
+  box-shadow: 0 8px 28px rgb(42 87 66 / 7%);
+}
+.school-home-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.school-home-section-heading h2 { margin: 2px 0 0; color: var(--school-ink); font-size: 1.12rem; }
+.school-my-card, .school-result-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #d9ebe2;
+  border-radius: 14px;
+  background: #fff;
+  color: var(--school-ink);
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.school-my-card { padding: 16px; background: linear-gradient(135deg, #eaf8f1, #fffdf5); }
+.school-my-card:hover, .school-result-card:hover {
+  transform: translateY(-1px);
+  border-color: #9fd2b7;
+  box-shadow: 0 7px 18px rgb(31 122 77 / 10%);
+}
+.school-my-card-icon, .school-result-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #fff;
+  font-size: 1.2rem;
+  box-shadow: 0 3px 10px rgb(31 122 77 / 8%);
+}
+.school-my-card .grow, .school-result-card .grow { display: flex; flex-direction: column; min-width: 0; }
+.school-my-card strong, .school-result-card strong { overflow: hidden; font-size: 1rem; text-overflow: ellipsis; white-space: nowrap; }
+.school-my-card small, .school-result-card small { overflow: hidden; margin-top: 2px; color: var(--school-muted); font-size: 0.78rem; text-overflow: ellipsis; white-space: nowrap; }
+.school-card-arrow { color: #2d8058; font-size: 1.2rem; font-weight: 700; }
+.school-empty-my-school { display: flex; align-items: center; gap: 12px; background: #fffaf0; }
+.school-empty-my-school strong { display: block; color: var(--school-ink); }
+.school-empty-my-school p { margin: 2px 0 0; color: var(--school-muted); font-size: 0.8rem; }
+.school-empty-my-school .btn { flex: 0 0 auto; color: #226946; border-color: #abd5bf; background: #fff; }
+.school-search-symbol {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: #e6f5ed;
+  color: #1f7a4d;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+.school-search-guide { margin: -4px 0 14px; color: var(--school-muted); font-size: 0.84rem; }
+.school-search-section .field { margin-bottom: 14px; }
+.school-search-section input[type="search"] {
+  min-height: 52px;
+  padding: 12px 16px;
+  color: var(--school-ink);
+  border: 1px solid #cfe3d9;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: inset 0 1px 2px rgb(25 80 54 / 3%);
+}
+.school-search-section input[type="search"]::placeholder { color: #8b9b94; }
+.school-search-section input[type="search"]:focus { border-color: #62ad85; box-shadow: 0 0 0 4px rgb(77 166 118 / 12%); outline: none; }
+.school-result-card { margin-bottom: 9px; padding: 13px 14px; }
+.school-result-icon { background: #eff8f3; box-shadow: none; }
+
+@media (max-width: 480px) {
+  .school-detail-hero, .school-tab-panel { padding: 16px; }
+  .school-detail-heading { align-items: flex-start; }
+  .school-detail-icon { flex-basis: 46px; width: 46px; height: 46px; border-radius: 13px; font-size: 1.45rem; }
+  .school-detail-tabs a { min-height: 60px; gap: 7px; padding: 8px; }
+  .school-detail-tabs small { display: none; }
+  .school-summary-card { padding: 14px; }
+  .school-home-section { padding: 16px; }
+  .school-empty-my-school { align-items: flex-start; flex-wrap: wrap; }
+  .school-empty-my-school .grow { min-width: calc(100% - 56px); }
+  .school-empty-my-school .btn { width: 100%; }
+}
 .share-detail-copy {
   margin: 0;
   white-space: pre-wrap;
@@ -619,6 +823,17 @@ button, .btn {
 
 /* --------------------------------------------------------- utilities */
 .list-reset { list-style: none; padding: 0; margin: 0; }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 .center-page {
   max-width: 420px;
   margin: 48px auto;

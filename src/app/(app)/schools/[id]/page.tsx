@@ -92,13 +92,20 @@ export default async function SchoolDetailPage({
   const isMySchool = profile.school_id === school.id;
 
   return (
-    <main>
-      <p className="muted">
-        <Link href="/schools">← 학교 검색</Link>
-      </p>
-
-      <h1>{school.name}</h1>
-      <p className="muted">{school.address ?? "주소 정보 없음"}</p>
+    <main className="school-detail-page">
+      <header className="school-detail-hero">
+        <Link href="/schools" className="school-detail-back">← 학교 검색으로</Link>
+        <div className="school-detail-heading">
+          <span className="school-detail-icon" aria-hidden="true">🏫</span>
+          <div className="grow">
+            <div className="row" style={{ gap: 8 }}>
+              <h1>{school.name}</h1>
+              {isMySchool ? <span className="school-mine-badge">내 학교</span> : null}
+            </div>
+            <p>{school.address ?? "주소 정보 없음"}</p>
+          </div>
+        </div>
+      </header>
 
       {saved ? <p className="notice notice-info">평가를 저장했습니다.</p> : null}
       {error ? (
@@ -107,32 +114,43 @@ export default async function SchoolDetailPage({
         </p>
       ) : null}
 
-      <nav className="subtabs school-detail-tabs" aria-label="학교 평가 정보">
+      <nav className="school-detail-tabs" aria-label="학교 평가 정보">
         <Link href={`/schools/${school.id}`} aria-current={activeView === "average" ? "page" : undefined}>
-          학교 평균
+          <span className="school-tab-icon" aria-hidden="true">📊</span>
+          <span><strong>학교 평균</strong><small>전체 평가 결과 보기</small></span>
         </Link>
         <Link href={`/schools/${school.id}?view=mine`} aria-current={activeView === "mine" ? "page" : undefined}>
-          내 평가
+          <span className="school-tab-icon" aria-hidden="true">⭐</span>
+          <span><strong>내 평가</strong><small>별점 등록 및 수정</small></span>
         </Link>
       </nav>
 
       {activeView === "average" ? (
-        <>
-          <div className="card">
-            <div className="spread">
-              <div>
-                <span className="muted">전체 평균</span>
-                <div className="big-number">
-                  {formatScore(overall?.average_score ?? null)}
-                </div>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <span className="muted">참여자</span>
-                <div className="big-number">{overall?.reviewer_count ?? 0}명</div>
-              </div>
+        <section className="school-tab-panel">
+          <div className="school-section-heading">
+            <div>
+              <span className="school-eyebrow">SCHOOL REVIEW</span>
+              <h2>우리 학교 한눈에 보기</h2>
             </div>
+            <p>선생님들이 남긴 평가를 종합한 결과예요.</p>
           </div>
-          <h2>질문별 평균</h2>
+          <div className="school-summary-grid">
+            <article className="school-summary-card school-summary-score">
+              <span>전체 평균</span>
+              <div><strong>{formatScore(overall?.average_score ?? null)}</strong><small>/ 5점</small></div>
+              <p>모든 질문의 평균 점수</p>
+            </article>
+            <article className="school-summary-card school-summary-people">
+              <span>평가 참여</span>
+              <div><strong>{overall?.reviewer_count ?? 0}</strong><small>명</small></div>
+              <p>소중한 의견을 남긴 선생님</p>
+            </article>
+          </div>
+
+          <div className="school-subsection-heading">
+            <h2>질문별 평균</h2>
+            <p>항목별 점수를 육각형 그래프로 비교해 보세요.</p>
+          </div>
           {perQuestion.length === 0 ? (
             <p className="notice notice-info">아직 평가가 없습니다. 첫 평가를 남겨 주세요.</p>
           ) : (
@@ -145,10 +163,16 @@ export default async function SchoolDetailPage({
               }))}
             />
           )}
-        </>
+        </section>
       ) : (
-        <section>
-          <h2>{myReview ? "내 평가 수정" : "내 평가 등록"}</h2>
+        <section className="school-tab-panel school-my-review-panel">
+          <div className="school-section-heading">
+            <div>
+              <span className="school-eyebrow">MY REVIEW</span>
+              <h2>{myReview ? "내 평가 수정" : "내 평가 등록"}</h2>
+            </div>
+            <p>직접 경험한 학교 생활을 별점으로 알려 주세요.</p>
+          </div>
           {!isMySchool ? (
             <p className="notice notice-info">
               {profile.school_id
@@ -157,7 +181,7 @@ export default async function SchoolDetailPage({
               <Link href="/me"><u>내 정보에서 학교 설정하기</u></Link>
             </p>
           ) : questions && questions.length > 0 ? (
-            <form action={submitSchoolReview}>
+            <form action={submitSchoolReview} className="school-review-form">
               <input type="hidden" name="school_id" value={school.id} />
               {questions.map((question) => (
                 <StarRating key={question.id} name={`q:${question.id}`} label={question.text} defaultValue={myScores.get(question.id) ?? 0} />
