@@ -5,6 +5,7 @@ import { requireApprovedProfile } from "@/lib/auth";
 import { StatusTag } from "@/components/StatusTag";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
+import { TipsPdfButton } from "@/components/TipsPdfButton";
 import { signedUrlsFor } from "@/lib/storage";
 import { formatCarbon, formatDateTime } from "@/lib/format";
 import {
@@ -176,9 +177,7 @@ export default async function SharePostPage({
           <div className="share-detail-section-heading">
             <h2>활용 팁</h2>
             {isReserver ? (
-              <a href={`/share/${post.id}/tips-pdf`} className="btn btn-pdf" download>
-                PDF로 내려받기
-              </a>
+              <TipsPdfButton href={`/share/${post.id}/tips-pdf`} />
             ) : null}
           </div>
           <p className="share-detail-copy">{post.usage_tips}</p>

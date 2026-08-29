@@ -385,6 +385,86 @@ button, .btn {
 }
 .share-detail-section-heading h2 { margin: 0; padding: 0; border: 0; }
 .btn-pdf { min-height: 36px; padding: 6px 11px; color: var(--accent); border-color: var(--accent); font-size: 0.82rem; }
+/* PDF 생성 대기 커튼. 배경 전체를 덮어 나머지 화면을 못 쓰게 만든다. */
+.pdf-curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  backdrop-filter: blur(3px);
+  animation: pdf-fade 0.18s ease-out;
+}
+.pdf-curtain-card {
+  width: min(320px, 100%);
+  padding: 26px 22px 22px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 18px 48px rgb(0 0 0 / 22%);
+  text-align: center;
+}
+.pdf-curtain-art {
+  position: relative;
+  height: 132px;
+  margin-bottom: 14px;
+}
+.pdf-curtain-mascot {
+  height: 130px;
+  width: auto;
+  animation: pdf-hop 1.05s ease-in-out infinite;
+}
+.pdf-curtain-parcel {
+  position: absolute;
+  right: 22%;
+  bottom: 6px;
+  font-size: 26px;
+  animation: pdf-parcel 1.05s ease-in-out infinite;
+}
+.pdf-curtain-text {
+  margin: 0 0 16px;
+  font-weight: 700;
+  line-height: 1.5;
+  word-break: keep-all;
+}
+.pdf-curtain-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.pdf-curtain-track span {
+  display: block;
+  height: 100%;
+  width: 42%;
+  border-radius: 999px;
+  background: var(--accent);
+  animation: pdf-slide 1.15s ease-in-out infinite;
+}
+
+@keyframes pdf-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pdf-hop {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50%      { transform: translateY(-11px) rotate(2deg); }
+}
+@keyframes pdf-parcel {
+  0%, 100% { transform: translateY(0) rotate(-6deg); }
+  50%      { transform: translateY(-7px) rotate(6deg); }
+}
+@keyframes pdf-slide {
+  0%   { transform: translateX(-105%); }
+  100% { transform: translateX(255%); }
+}
+
+/* 움직임을 줄여달라고 설정한 사용자에게는 커튼만 보여준다. */
+@media (prefers-reduced-motion: reduce) {
+  .pdf-curtain, .pdf-curtain-mascot,
+  .pdf-curtain-parcel, .pdf-curtain-track span { animation: none; }
+  .pdf-curtain-track span { width: 100%; }
+}
+
 .school-detail-tabs { margin-top: 22px; }
 .share-detail-copy {
   margin: 0;
